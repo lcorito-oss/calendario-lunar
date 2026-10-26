@@ -682,7 +682,9 @@ function drawSky(){
   ctx.clearRect(0,0,width,height);
 
   // Proyección de todo el cielo visible de San Francisco del Oro; el centro del lienzo es el cenit.
-  const skyDay = sel.getFullYear()===year && sel.getMonth()===month ? sel : new Date(year,month,1);\n  // 00:00 local en San Francisco del Oro equivale a 06:00 UTC (JD dinámico).\n  const d = Date.UTC(skyDay.getFullYear(),skyDay.getMonth(),skyDay.getDate(),6)/86400000 + 2440587.5 - 2451545;
+  const skyDay = sel.getFullYear()===year && sel.getMonth()===month ? sel : new Date(year,month,1);
+  // 00:00 local en San Francisco del Oro equivale a 06:00 UTC (JD dinámico).
+  const d = Date.UTC(skyDay.getFullYear(),skyDay.getMonth(),skyDay.getDate(),6)/86400000 + 2440587.5 - 2451545;
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
   const cx = width/2, cy = height/2;
   const horizonRadius = Math.tan(85*R/2);
