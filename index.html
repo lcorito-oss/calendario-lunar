@@ -227,7 +227,7 @@ function drawSky(){
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
   const moonBox = $("heroMoon").getBoundingClientRect();
   const cx = moonBox.left + moonBox.width/2, cy = moonBox.top + moonBox.height/2;
-  const fieldScale = Math.min(210,Math.max(150,Math.min(width,height)*.34));
+  const fieldScale = Math.min(170,Math.max(120,Math.min(width,height)*.27));
   const projected = new Map();
 
   for (const [index,[raDeg,decDeg,magnitude]] of STAR_CATALOG.entries()){
@@ -235,7 +235,7 @@ function drawSky(){
     const sinAlt = Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(ha);
     const alt = Math.asin(Math.max(-1,Math.min(1,sinAlt)));
     const altDeg = alt/R;
-    if (altDeg < 10) continue;
+    if (altDeg < 5) continue;
     const cosAlt = Math.max(.0001,Math.cos(alt));
     const sinAz = -Math.cos(dec)*Math.sin(ha)/cosAlt;
     const cosAz = (Math.sin(dec)-Math.sin(alt)*Math.sin(LAT*R))/(cosAlt*Math.cos(LAT*R));
