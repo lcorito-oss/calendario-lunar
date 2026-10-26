@@ -108,7 +108,16 @@ const STAR_CATALOG = [
   [219.90,-60.83,-.3],[221.25,27.07,2.4],[222.67,74.15,2.1],[233.67,26.71,2.2],
   [247.35,-26.43,1.1],[263.73,12.56,2.1],[269.15,51.49,2.2],[279.23,38.78,0],
   [297.70,8.87,.8],[306.41,-56.74,1.9],[310.36,45.28,1.3],[326.05,9.88,2.4],
-  [344.41,-29.62,1.2],[346.19,15.21,2.5]
+  [344.41,-29.62,1.2],[346.19,15.21,2.5],
+  // Estrellas guía para Casiopea, Pegaso y el Cisne
+  [14.177,60.717,2.5],[21.454,60.235,2.7],[28.598,63.67,3.4],
+  [345.943,28.083,2.4],[3.309,15.183,2.8],
+  [305.557,40.257,2.2],[305.557,33.97,2.5],[296.244,45.13,2.9],[292.68,27.96,3.1]
+];
+const CONSTELLATION_EDGES = [
+  [1,3],[3,54],[54,55],[55,56],
+  [0,57],[57,53],[53,58],[58,0],
+  [50,59],[59,62],[59,61],[59,60]
 ];
 
 const ECLIPSES = [
@@ -205,14 +214,15 @@ function drawSky(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
 
-  // USNO approximation for local sidereal time; east longitude is positive.
+  // Proyección del cielo local: las líneas aparecen cuando sus dos estrellas están sobre el horizonte.
   const d = Date.now()/86400000 + 2440587.5 - 2451545;
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
   const moonBox = $("heroMoon").getBoundingClientRect();
   const cx = moonBox.left + moonBox.width/2, cy = moonBox.top + moonBox.height/2;
   const fieldScale = Math.min(210,Math.max(150,Math.min(width,height)*.34));
+  const projected = new Map();
 
-  for (const [raDeg,decDeg,magnitude] of STAR_CATALOG){
+  for (const [index,[raDeg,decDeg,magnitude]] of STAR_CATALOG.entries()){
     const dec = decDeg*R, ha = lst-raDeg*R;
     const sinAlt = Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(ha);
     const alt = Math.asin(Math.max(-1,Math.min(1,sinAlt)));
@@ -225,6 +235,25 @@ function drawSky(){
     const radius = Math.tan((90-altDeg)*R/2)*fieldScale;
     const x = cx + Math.sin(az)*radius, y = cy - Math.cos(az)*radius;
     if (x < -4 || x > width+4 || y < -4 || y > height+4) continue;
+    projected.set(index,{x,y,magnitude});
+  }
+
+  ctx.save();
+  ctx.globalAlpha = .2;
+  ctx.strokeStyle = "#b8d1ff";
+  ctx.lineWidth = .8;
+  ctx.lineCap = "round";
+  for (const [from,to] of CONSTELLATION_EDGES){
+    const a = projected.get(from), b = projected.get(to);
+    if (!a || !b) continue;
+    ctx.beginPath();
+    ctx.moveTo(a.x,a.y);
+    ctx.lineTo(b.x,b.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  for (const {x,y,magnitude} of projected.values()){
     const dot = Math.max(.55,Math.min(1.8,1.55-(magnitude+1)*.22));
     const opacity = Math.max(.18,Math.min(.85,.92-(magnitude+1.5)*.16));
     ctx.globalAlpha = opacity;
