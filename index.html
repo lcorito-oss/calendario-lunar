@@ -238,7 +238,11 @@ function drawSky(){
     projected.set(index,{x,y,magnitude});
   }
 
+  // Limita estrellas y líneas al halo de la Luna; el canvas queda detrás de la página.
   ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx,cy,Math.max(100,moonBox.width*1.1),Math.max(100,moonBox.height*1.1),0,0,Math.PI*2);
+  ctx.clip();
   ctx.globalAlpha = .13;
   ctx.strokeStyle = "#b8d1ff";
   ctx.lineWidth = .8;
@@ -251,7 +255,6 @@ function drawSky(){
     ctx.lineTo(b.x,b.y);
     ctx.stroke();
   }
-  ctx.restore();
 
   for (const {x,y,magnitude} of projected.values()){
     const dot = Math.max(.65,Math.min(2,1.7-(magnitude+1)*.22));
@@ -266,6 +269,7 @@ function drawSky(){
   }
   ctx.globalAlpha = 1;
   ctx.shadowBlur = 0;
+  ctx.restore();
 }
 
 function eventsBetween(t0, t1){
@@ -353,6 +357,7 @@ $("next").onclick = () => go(1);
 $("today").onclick = () => { now = cityDay(Date.now()); year = now.getFullYear(); month = now.getMonth(); sel = new Date(year, month, now.getDate()); render(); };
 render();
 window.addEventListener("resize",drawSky);
+window.addEventListener("scroll",drawSky,{passive:true});
 window.setInterval(drawSky,60000);
 </script>
 </body>
