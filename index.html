@@ -58,9 +58,10 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .cell.today{box-shadow:inset 0 0 0 1px var(--text)}
 .cell.sel{outline:2px solid var(--text);outline-offset:-2px}
 .list{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:8px}
-.list li{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
-.list img,.list svg{width:30px;height:30px;flex:none}
-.list .t{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.list li{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0}
+.list img,.list svg{width:24px;height:24px;flex:none}
+.list strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(.72rem,1.7vw,.95rem)}
+.list .t{margin-left:auto;flex:none;color:var(--muted);font-size:clamp(.68rem,1.5vw,.9rem);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .list li.eclipse-entry strong{color:var(--eclipse)}
 .note{color:var(--muted);font-size:.85rem;margin-top:24px}
 @media (max-width:520px){.cell{min-height:80px}.cell img,.cell svg{width:28px;height:28px}.cell .ev{font-size:.62rem}}
@@ -802,9 +803,9 @@ function render(){
     const dateText = dt.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short",timeZone:TZ});
     if (ev.kind === "eclipse") {
       const visibility = ev.america ? "en parte de América" : "fuera de América";
-      return '<li class="eclipse-entry">' + moon(180) + '<strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong><span class="t">' + dateText + '<br>Máximo aprox. ' + hora(dt) + '<br>' + visibility + '</span></li>';
+      return '<li class="eclipse-entry">' + moon(180) + '<strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong><span class="t">' + dateText + ' · Máx. ' + hora(dt) + ' · ' + visibility + '</span></li>';
     }
-    return '<li>' + moon(ev.i*90) + '<strong>' + MAIN[ev.i] + '</strong><span class="t">' + dateText + '<br>' + hora(dt) + '</span></li>';
+    return '<li>' + moon(ev.i*90) + '<strong>' + MAIN[ev.i] + '</strong><span class="t">' + dateText + ' · ' + hora(dt) + '</span></li>';
   }).join("");
   hero();
   drawSky();
