@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendario lunar</title>
+<style>
+:root{
+  --bg:#05070d; --panel:#0d121c; --line:#1f2836; --text:#e8ebf2; --muted:#8c97ab;
+  --lit:#e9e6da; --dark:#1a2030; --accent:#8fd694; --accent-bg:#122219; --eclipse:#d5b9ff;
+  box-sizing:border-box;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f3f1ea; --panel:#fbfaf6; --line:#d9d5c8; --text:#171a22; --muted:#667085;
+    --lit:#f4d98a; --dark:#3a4256; --accent:#1f7a3d; --accent-bg:#e4f1e2; --eclipse:#7047a1; color-scheme:light;
+  }
+}
+:root[data-theme="light"]{--bg:#f3f1ea;--panel:#fbfaf6;--line:#d9d5c8;--text:#171a22;--muted:#667085;--lit:#f4d98a;--dark:#3a4256;--accent:#1f7a3d;--accent-bg:#e4f1e2;--eclipse:#7047a1;color-scheme:light}
+:root[data-theme="dark"]{--bg:#05070d;--panel:#0d121c;--line:#1f2836;--text:#e8ebf2;--muted:#8c97ab;--lit:#e9e6da;--dark:#1a2030;--accent:#8fd694;--accent-bg:#122219;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
+main{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:20px 16px 48px}
+#sky{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;opacity:.56}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;margin:0}
+.hero{display:flex;gap:28px;align-items:center;padding:20px 0 28px;flex-wrap:wrap}
+.hero img,.hero svg{display:block;width:min(190px,45vw);height:auto;flex:none;filter:drop-shadow(0 0 8px rgba(255,250,220,.58)) drop-shadow(0 0 22px rgba(233,230,218,.34)) drop-shadow(0 0 44px rgba(233,230,218,.18))}
+.hero h1{font-size:clamp(2rem,6vw,3.2rem);line-height:1.1}
+.hero .date{color:var(--muted);margin:4px 0 14px;text-transform:capitalize}
+dl{display:grid;grid-template-columns:auto auto;gap:4px 28px;margin:0;font-size:1rem}
+dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.bar h2{font-size:1.6rem;text-transform:capitalize}
+.btns{display:flex;gap:6px}
+button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.scroll{overflow-x:auto}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(46px,1fr));gap:4px;min-width:340px}
+.dow{color:var(--muted);font-size:.82rem;text-align:center;padding:4px 0}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 4px;min-height:92px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;text-align:center;font:inherit;color:inherit}
+.cell.empty{background:none;border:none;cursor:default}
+.cell .n{font-size:.85rem;color:var(--muted);align-self:flex-start;padding-left:4px}
+.cell img,.cell svg{width:34px;height:34px;filter:drop-shadow(0 0 4px rgba(233,230,218,.2))}
+.cell .p{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cell .ev{font-size:.68rem;line-height:1.15;color:var(--accent)}
+.cell.main{background:var(--accent-bg);border-color:var(--accent)}
+.cell.eclipse{border-color:var(--eclipse)}
+.cell .ev.eclipse-label{color:var(--eclipse)}
+.cell.today .n{color:var(--text);font-weight:600}
+.cell.today{box-shadow:inset 0 0 0 1px var(--text)}
+.cell.sel{outline:2px solid var(--text);outline-offset:-2px}
+.list{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.list li{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.list img,.list svg{width:30px;height:30px;flex:none}
+.list .t{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.list li.eclipse-entry strong{color:var(--eclipse)}
+.note{color:var(--muted);font-size:.85rem;margin-top:24px}
+@media (max-width:520px){.cell{min-height:80px}.cell img,.cell svg{width:28px;height:28px}.cell .ev{font-size:.62rem}}
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+<main>
+  <section class="hero" aria-live="polite">
+    <div id="heroMoon"></div>
+    <div>
+      <h1 id="heroName"></h1>
+      <p class="date" id="heroDate"></p>
+      <dl id="heroData"></dl>
+    </div>
+  </section>
+
+  <div class="bar">
+    <h2 id="monthTitle"></h2>
+    <div class="btns">
+      <button id="prev" aria-label="Mes anterior">‹</button>
+      <button id="today">Hoy</button>
+      <button id="next" aria-label="Mes siguiente">›</button>
+    </div>
+  </div>
+  <div class="scroll"><div class="grid" id="grid"></div></div>
+
+  <ul class="list" id="events"></ul>
+  <p class="note">Horas para San Francisco del Oro, Chihuahua (UTC−6). Fondo estelar simulado para el cielo local cerca del cenit; cambia con la hora y la estación. Eclipses: predicciones de Fred Espenak, NASA GSFC; máximo en hora local aproximada. La región de visibilidad es general y depende de la ubicación exacta. Cálculo astronómico aproximado: la salida y puesta de la luna pueden variar unos minutos según el relieve del horizonte. El dibujo corresponde al hemisferio norte.</p>
+</main>
+
+<script>
+const R = Math.PI / 180, SYN = 29.530588853;
+const LAT = 26.865, LON = -105.84, TZ = "America/Chihuahua"; // San Francisco del Oro, Chihuahua (UTC−6 todo el año)
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const MAIN = ["Luna nueva","Cuarto creciente","Luna llena","Cuarto menguante"];
+const NOMBRES = ["Luna nueva","Luna creciente","Cuarto creciente","Gibosa creciente","Luna llena","Gibosa menguante","Cuarto menguante","Luna menguante"];
+const STAR_CATALOG = [
+  [2.10,29.09,2.1],[2.29,59.15,2.3],[6.57,-42.3,2.4],[10.13,56.54,2.2],
+  [10.90,-17.98,2.0],[17.43,35.62,2.1],[24.43,-57.2,.5],[28.66,20.81,2.6],
+  [31.79,23.46,2.0],[37.95,89.26,2.0],[47.04,40.96,2.1],[51.08,49.86,1.8],
+  [68.98,16.51,.9],[78.63,-8.2,.2],[79.17,46.0,.1],[81.28,6.35,1.6],
+  [81.57,28.6,1.7],[84.05,-1.2,1.7],[88.79,7.4,.5],[93.72,22.51,3.3],
+  [95.74,22.51,2.9],[99.43,16.40,1.9],[100.98,25.13,3.1],[101.29,-16.7,-1.5],
+  [113.65,31.89,1.6],[114.82,5.2,.4],[116.33,28.03,1.1],[141.90,-8.66,2.0],
+  [152.09,11.97,1.4],[165.46,56.38,2.4],[165.93,61.75,1.8],[177.26,14.57,2.1],
+  [178.46,53.69,2.4],[186.65,-63.1,.8],[193.51,55.96,1.8],[200.98,54.93,2.3],
+  [201.30,-11.16,1.0],[206.89,49.31,1.9],[213.92,19.18,0],[215.59,38.3,3.0],
+  [219.90,-60.83,-.3],[221.25,27.07,2.4],[222.67,74.15,2.1],[233.67,26.71,2.2],
+  [247.35,-26.43,1.1],[263.73,12.56,2.1],[269.15,51.49,2.2],[279.23,38.78,0],
+  [297.70,8.87,.8],[306.41,-56.74,1.9],[310.36,45.28,1.3],[326.05,9.88,2.4],
+  [344.41,-29.62,1.2],[346.19,15.21,2.5]
+];
+
+const ECLIPSES = [
+  { utc:"2027-02-20T23:14:06Z", tipo:"Penumbral", america:true },
+  { utc:"2027-07-18T16:04:09Z", tipo:"Penumbral", america:false },
+  { utc:"2027-08-17T07:14:59Z", tipo:"Penumbral", america:true },
+  { utc:"2028-01-12T04:14:13Z", tipo:"Parcial", america:true },
+  { utc:"2028-07-06T18:20:57Z", tipo:"Parcial", america:false },
+  { utc:"2028-12-31T16:53:15Z", tipo:"Total", america:false },
+  { utc:"2029-06-26T03:23:22Z", tipo:"Total", america:true },
+  { utc:"2029-12-20T22:43:12Z", tipo:"Total", america:true },
+  { utc:"2030-06-15T18:34:34Z", tipo:"Parcial", america:false },
+  { utc:"2030-12-09T22:28:51Z", tipo:"Penumbral", america:true }
+];
+
+function elong(t){
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const L = 218.316 + 13.176396*d, Mp = 134.963 + 13.064993*d, D = 297.850 + 12.190749*d, g = 357.529 + 0.985600*d;
+  const lm = L + 6.289*Math.sin(Mp*R) + 1.274*Math.sin((2*D-Mp)*R) + 0.658*Math.sin(2*D*R) + 0.214*Math.sin(2*Mp*R) - 0.186*Math.sin(g*R);
+  const ls = 280.466 + 0.9856474*d + 1.915*Math.sin(g*R) + 0.020*Math.sin(2*g*R);
+  return (((lm - ls) % 360) + 360) % 360;
+}
+function moonAlt(t){
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const Mp = 134.963 + 13.064993*d, D = 297.850 + 12.190749*d, g = 357.529 + 0.985600*d, F = 93.272 + 13.229350*d;
+  const lm = (218.316 + 13.176396*d + 6.289*Math.sin(Mp*R) + 1.274*Math.sin((2*D-Mp)*R) + 0.658*Math.sin(2*D*R) + 0.214*Math.sin(2*Mp*R) - 0.186*Math.sin(g*R))*R;
+  const b = 5.128*Math.sin(F*R)*R, eps = (23.439 - 0.0000004*d)*R;
+  const ra = Math.atan2(Math.sin(lm)*Math.cos(eps) - Math.tan(b)*Math.sin(eps), Math.cos(lm));
+  const dec = Math.asin(Math.sin(b)*Math.cos(eps) + Math.cos(b)*Math.sin(eps)*Math.sin(lm));
+  const H = (280.46061837 + 360.98564736629*d + LON)*R - ra;
+  return Math.asin(Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(H))/R;
+}
+function riseSet(y, m, d){
+  const t0 = Date.UTC(y, m, d, 6), S = 600000, f = t => moonAlt(t) - 0.125, out = { rise: null, set: null };
+  for (let t = t0; t < t0 + 86400000; t += S){
+    const a = f(t), b = f(t + S);
+    if ((a < 0) === (b < 0)) continue;
+    let lo = t, hi = t + S;
+    for (let i = 0; i < 20; i++){ const mid = (lo+hi)/2; ((f(mid) < 0) === (a < 0)) ? lo = mid : hi = mid; }
+    if (a < 0 && !out.rise) out.rise = hi; else if (a >= 0 && !out.set) out.set = hi;
+  }
+  return out;
+}
+const hm = t => t ? hora(new Date(t)) : "—";
+const illum = e => (1 - Math.cos(e*R)) / 2;
+const nombre = e => {
+  const phase = ((e % 360) + 360) % 360;
+  if (phase >= 170 && phase <= 190) return "Luna llena";
+  return NOMBRES[Math.round(phase/45) % 8];
+};
+
+let moonCounter = 0;
+function moonSvg(e, size){
+  const id = "moon-" + moonCounter++;
+  const r = 46;
+  const phase = ((e % 360) + 360) % 360;
+  const waning = phase > 180;
+  const angle = waning ? 360 - phase : phase;
+  const rx = (r * Math.abs(Math.cos(angle * R))).toFixed(2);
+  const sweep = angle < 90 ? 0 : 1;
+  const lightPath = "M50 4 A46 46 0 0 1 50 96 A" + rx + " 46 0 0 " + sweep + " 50 4 Z";
+  const transform = waning ? ' transform="translate(100 0) scale(-1 1)"' : "";
+  const terminatorPath = "M50 4 A" + rx + " 46 0 0 " + sweep + " 50 96";
+  const litClip = id + "-light";
+  let illuminated = "";
+  if (illum(angle) > .003) {
+    illuminated = '<g clip-path="url(#' + litClip + ')">' +
+      '<image href="assets/moon-surface.png" x="4" y="4" width="92" height="92" preserveAspectRatio="xMidYMid meet"/>' +
+      '<circle cx="50" cy="50" r="46" fill="url(#' + id + '-shade)" opacity=".2"/>' +
+      '</g>';
+  }
+  return '<svg viewBox="0 0 100 100" width="' + size + '" height="' + size + '" role="img" aria-label="' + nombre(e) + '">' +
+    '<defs>' +
+      '<radialGradient id="' + id + '-shade" cx="35%" cy="28%" r="85%"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#252a32" stop-opacity=".72"/></radialGradient>' +
+      '<radialGradient id="' + id + '-night" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#343a44"/><stop offset="1" stop-color="#11151c"/></radialGradient>' +
+      '<clipPath id="' + litClip + '"><path d="' + lightPath + '"' + transform + '/></clipPath>' +
+    '</defs>' +
+    '<circle cx="50" cy="50" r="46" fill="url(#' + id + '-night)"/>' +
+    illuminated +
+    (angle > 1 && angle < 179 ? '<path d="' + terminatorPath + '"' + transform + ' fill="none" stroke="#eeeae0" stroke-opacity=".18" stroke-width="1.4"/>' : "") +
+    '<circle cx="50" cy="50" r="46" fill="none" stroke="#d5d3ca" stroke-opacity=".32" stroke-width="1.1"/>' +
+    '</svg>';
+}
+function moon(e, big){ return moonSvg(e, big ? 190 : 34); }
+
+function drawSky(){
+  const canvas = $("sky");
+  if (!canvas) return;
+  const width = window.innerWidth, height = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(width*dpr);
+  canvas.height = Math.round(height*dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,width,height);
+
+  // USNO approximation for local sidereal time; east longitude is positive.
+  const d = Date.now()/86400000 + 2440587.5 - 2451545;
+  const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
+  const moonBox = $("heroMoon").getBoundingClientRect();
+  const cx = moonBox.left + moonBox.width/2, cy = moonBox.top + moonBox.height/2;
+  const fieldScale = Math.min(210,Math.max(150,Math.min(width,height)*.34));
+
+  for (const [raDeg,decDeg,magnitude] of STAR_CATALOG){
+    const dec = decDeg*R, ha = lst-raDeg*R;
+    const sinAlt = Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(ha);
+    const alt = Math.asin(Math.max(-1,Math.min(1,sinAlt)));
+    const altDeg = alt/R;
+    if (altDeg < 10) continue;
+    const cosAlt = Math.max(.0001,Math.cos(alt));
+    const sinAz = -Math.cos(dec)*Math.sin(ha)/cosAlt;
+    const cosAz = (Math.sin(dec)-Math.sin(alt)*Math.sin(LAT*R))/(cosAlt*Math.cos(LAT*R));
+    const az = Math.atan2(sinAz,cosAz);
+    const radius = Math.tan((90-altDeg)*R/2)*fieldScale;
+    const x = cx + Math.sin(az)*radius, y = cy - Math.cos(az)*radius;
+    if (x < -4 || x > width+4 || y < -4 || y > height+4) continue;
+    const dot = Math.max(.55,Math.min(1.8,1.55-(magnitude+1)*.22));
+    const opacity = Math.max(.18,Math.min(.85,.92-(magnitude+1.5)*.16));
+    ctx.globalAlpha = opacity;
+    ctx.fillStyle = "#dce8ff";
+    ctx.shadowColor = "#b8d1ff";
+    ctx.shadowBlur = magnitude < 1 ? 7 : 2.5;
+    ctx.beginPath();
+    ctx.arc(x,y,dot,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+}
+
+function eventsBetween(t0, t1){
+  const out = [], H = 3600000;
+  for (let t = t0; t < t1; t += H){
+    const q0 = Math.floor(elong(t)/90), q1 = Math.floor(elong(t+H)/90);
+    if (q0 !== q1){
+      let lo = t, hi = t + H;
+      for (let i = 0; i < 22; i++){ const m = (lo+hi)/2; Math.floor(elong(m)/90) === q0 ? lo = m : hi = m; }
+      out.push({ t: hi, i: q1 % 4 });
+    }
+  }
+  return out;
+}
+
+function cityDay(t){ const c = new Date(t - 6*36e5); return new Date(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate()); }
+let now = cityDay(Date.now());
+let year = now.getFullYear(), month = now.getMonth(), sel = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const key = d => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+const hora = d => d.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+
+const $ = id => document.getElementById(id);
+
+function hero(){
+  const noon = Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 18);
+  const e = elong(noon);
+  $("heroMoon").innerHTML = moon(e, true);
+  $("heroName").textContent = nombre(e);
+  $("heroDate").textContent = sel.toLocaleDateString("es", { weekday:"long", day:"numeric", month:"long", year:"numeric" }) + ", San Francisco del Oro";
+  const rs = riseSet(sel.getFullYear(), sel.getMonth(), sel.getDate());
+  $("heroData").innerHTML = `<dt>Sale la luna</dt><dd>${hm(rs.rise)}</dd><dt>Se oculta la luna</dt><dd>${hm(rs.set)}</dd><dt>Iluminación</dt><dd>${Math.round(illum(e)*100)}%</dd><dt>Edad lunar</dt><dd>${(e/360*SYN).toFixed(1)} días</dd><dt>Fase</dt><dd>${e < 180 ? "Creciente" : "Menguante"}</dd>`;
+}
+
+function render(){
+  now = cityDay(Date.now());
+  $("monthTitle").textContent = MESES[month] + " " + year;
+  const first = new Date(year, month, 1), days = new Date(year, month+1, 0).getDate();
+  const start = Date.UTC(year, month, 1, 6), end = Date.UTC(year, month+1, 1, 6);
+  const phaseEvents = eventsBetween(start, end).map(ev => Object.assign({}, ev, { kind:"phase" }));
+  const eclipseEvents = ECLIPSES
+    .map(ev => Object.assign({}, ev, { t:Date.parse(ev.utc), kind:"eclipse" }))
+    .filter(ev => ev.t >= start && ev.t < end);
+  const evs = phaseEvents.concat(eclipseEvents).sort((a,b) => a.t-b.t);
+  const byDay = {};
+  evs.forEach(ev => {
+    const k = key(cityDay(ev.t));
+    if (!byDay[k]) byDay[k] = [];
+    byDay[k].push(ev);
+  });
+
+  let h = DIAS.map(d => '<div class="dow">' + d + '</div>').join("");
+  for (let i = 0; i < (first.getDay()+6)%7; i++) h += '<div class="cell empty"></div>';
+  for (let d = 1; d <= days; d++){
+    const dt = new Date(year, month, d), e = elong(Date.UTC(year, month, d, 18)), dayEvents = byDay[key(dt)] || [];
+    const hasPhase = dayEvents.some(ev => ev.kind === "phase");
+    const hasEclipse = dayEvents.some(ev => ev.kind === "eclipse");
+    const cls = ["cell", hasPhase ? "main" : "", hasEclipse ? "eclipse" : "", key(dt) === key(now) ? "today" : "", key(dt) === key(sel) ? "sel" : ""].join(" ");
+    const labels = dayEvents.filter(ev => ev.kind === "eclipse" || !hasEclipse).map(ev => ev.kind === "eclipse"
+      ? '<span class="ev eclipse-label">Eclipse ' + ev.tipo.toLowerCase() + '<br>' + hora(new Date(ev.t)) + '</span>'
+      : '<span class="ev">' + MAIN[ev.i] + '<br>' + hora(new Date(ev.t)) + '</span>').join("");
+    const eclipse = dayEvents.find(ev => ev.kind === "eclipse");
+    const extraLabel = eclipse ? ", eclipse lunar " + eclipse.tipo.toLowerCase() : "";
+    h += '<button class="' + cls + '" data-d="' + d + '" aria-label="' + d + ' de ' + MESES[month] + ': ' + nombre(e) + ', ' + Math.round(illum(e)*100) + '%' + extraLabel + '"><span class="n">' + d + '</span>' + moon(e) + '<span class="p">' + Math.round(illum(e)*100) + '%</span>' + labels + '</button>';
+  }
+  $("grid").innerHTML = h;
+  $("events").innerHTML = evs.map(ev => {
+    const dt = new Date(ev.t);
+    const dateText = dt.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short",timeZone:TZ});
+    if (ev.kind === "eclipse") {
+      const visibility = ev.america ? "en parte de América" : "fuera de América";
+      return '<li class="eclipse-entry">' + moon(180) + '<strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong><span class="t">' + dateText + '<br>Máximo aprox. ' + hora(dt) + '<br>' + visibility + '</span></li>';
+    }
+    return '<li>' + moon(ev.i*90) + '<strong>' + MAIN[ev.i] + '</strong><span class="t">' + dateText + '<br>' + hora(dt) + '</span></li>';
+  }).join("");
+  hero();
+  drawSky();
+}
+$("grid").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]"); if (!b) return;
+  sel = new Date(year, month, +b.dataset.d); render();
+});
+function go(n){ const d = new Date(year, month+n, 1); year = d.getFullYear(); month = d.getMonth(); render(); }
+$("prev").onclick = () => go(-1);
+$("next").onclick = () => go(1);
+$("today").onclick = () => { now = cityDay(Date.now()); year = now.getFullYear(); month = now.getMonth(); sel = new Date(year, month, now.getDate()); render(); };
+render();
+window.addEventListener("resize",drawSky);
+window.setInterval(drawSky,60000);
+</script>
+</body>
+</html>
