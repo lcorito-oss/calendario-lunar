@@ -222,12 +222,11 @@ function drawSky(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
 
-  // Proyección del cielo local: las líneas aparecen cuando sus dos estrellas están sobre el horizonte.
+  // Proyección de todo el cielo visible de San Francisco del Oro; el centro del lienzo es el cenit.
   const d = Date.now()/86400000 + 2440587.5 - 2451545;
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
-  const moonBox = $("heroMoon").getBoundingClientRect();
-  const cx = moonBox.left + moonBox.width/2, cy = moonBox.top + moonBox.height/2;
-  const fieldScale = Math.min(170,Math.max(120,Math.min(width,height)*.27));
+  const cx = width/2, cy = height/2;
+  const horizonRadius = Math.tan(85*R/2);
   const projected = new Map();
 
   for (const [index,[raDeg,decDeg,magnitude]] of STAR_CATALOG.entries()){
@@ -240,17 +239,14 @@ function drawSky(){
     const sinAz = -Math.cos(dec)*Math.sin(ha)/cosAlt;
     const cosAz = (Math.sin(dec)-Math.sin(alt)*Math.sin(LAT*R))/(cosAlt*Math.cos(LAT*R));
     const az = Math.atan2(sinAz,cosAz);
-    const radius = Math.tan((90-altDeg)*R/2)*fieldScale;
-    const x = cx + Math.sin(az)*radius, y = cy - Math.cos(az)*radius;
+    const radius = Math.tan((90-altDeg)*R/2)/horizonRadius;
+    const x = cx + Math.sin(az)*radius*width/2, y = cy - Math.cos(az)*radius*height/2;
     if (x < -4 || x > width+4 || y < -4 || y > height+4) continue;
     projected.set(index,{x,y,magnitude});
   }
 
-  // Limita estrellas y líneas al halo de la Luna; el canvas queda detrás de la página.
+  // El lienzo completo representa el cielo; el cenit queda al centro y el horizonte en los bordes.
   ctx.save();
-  ctx.beginPath();
-  ctx.ellipse(cx,cy,Math.max(100,moonBox.width*1.1),Math.max(100,moonBox.height*1.1),0,0,Math.PI*2);
-  ctx.clip();
   ctx.globalAlpha = .13;
   ctx.strokeStyle = "#b8d1ff";
   ctx.lineWidth = .8;
