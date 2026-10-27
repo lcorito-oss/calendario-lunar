@@ -879,6 +879,28 @@ function moonSvg(e, size){
 }
 function moon(e, big){ return moonSvg(e, big ? 190 : 34); }
 
+// Planetas con elementos aproximados JPL y Luna con órbita media, para JD 2444945.0; solo se dibujan sobre el horizonte.
+const SKY_BODIES = [
+  {name:"Mercurio",ra:250.6809,dec:-22.9976,color:"#cbd3e3",kind:"planet"},
+  {name:"Venus",ra:301.2532,dec:-22.9305,color:"#ffe6a6",kind:"planet"},
+  {name:"Marte",ra:176.7908,dec:3.5677,color:"#ff927d",kind:"planet"},
+  {name:"Júpiter",ra:210.2106,dec:-11.1180,color:"#f3d09a",kind:"planet"},
+  {name:"Saturno",ra:199.3960,dec:-5.6732,color:"#dfc88d",kind:"planet"},
+  {name:"Urano",ra:239.3155,dec:-20.2761,color:"#a8e5e1",kind:"planet"},
+  {name:"Neptuno",ra:264.0515,dec:-22.0715,color:"#9eb7ff",kind:"planet"},
+  {name:"Luna",ra:9.9812,dec:-1.0861,color:"#fff1c8",kind:"moon"}
+];
+const SKY_GALAXIES = [
+  {name:"M31 Andrómeda",ra:10.6847,dec:41.2692},
+  {name:"M33 Triángulo",ra:23.4621,dec:30.6599},
+  {name:"M81 Bode",ra:148.8882,dec:69.0653},
+  {name:"M82 Cigarro",ra:148.9685,dec:69.6797},
+  {name:"M51 Remolino",ra:202.4696,dec:47.1953},
+  {name:"M101 Molinete",ra:210.8024,dec:54.3489},
+  {name:"M104 Sombrero",ra:189.9979,dec:-11.6230},
+  {name:"M83 Molinillo austral",ra:204.2530,dec:-29.8650}
+];
+
 function drawSky(){
   const canvas = $("sky");
   if (!canvas) return;
@@ -891,7 +913,7 @@ function drawSky(){
   ctx.clearRect(0,0,width,height);
 
   // Proyección de todo el cielo visible de San Francisco del Oro; el centro del lienzo es el cenit.
-  const d = 2444944.75-2451545; // Día juliano del cielo de referencia.
+  const d = 2444945.0-2451545; // Día juliano del cielo de referencia.
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
   const cx = width/2, cy = height/2;
   const horizonRadius = Math.tan(90*R/2);
@@ -915,6 +937,42 @@ function drawSky(){
 
   // El lienzo completo representa el cielo; el cenit queda al centro y el horizonte en los bordes.
   ctx.save();
+  const projectEquatorial=(raDeg,decDeg,includeBelow=false)=>{
+    const dec=decDeg*R,ha=lst-raDeg*R;
+    const alt=Math.asin(Math.max(-1,Math.min(1,Math.sin(LAT*R)*Math.sin(dec)+Math.cos(LAT*R)*Math.cos(dec)*Math.cos(ha))));
+    const below=alt<0;if(below&&!includeBelow)return null;
+    const cosAlt=Math.max(.0001,Math.cos(alt));
+    const sinAz=-Math.cos(dec)*Math.sin(ha)/cosAlt;
+    const cosAz=(Math.sin(dec)-Math.sin(alt)*Math.sin(LAT*R))/(cosAlt*Math.cos(LAT*R));
+    const az=Math.atan2(sinAz,cosAz),visibleAlt=Math.max(0,alt/R),radius=Math.tan((90-visibleAlt)*R/2)/horizonRadius;
+    const x=cx+Math.sin(az)*radius*width/2,y=cy-Math.cos(az)*radius*height/2;
+    if(x < -4 || x > width+4 || y < -4 || y > height+4)return null;
+    return {x,y,alt:alt/R,below};
+  };
+  // Banda difusa de la Vía Láctea: puntos del plano galáctico transformados a J2000.
+  for(let b=-12;b<=12;b+=3)for(let l=0;l<360;l+=4){
+    const br=b*R,lr=l*R,cb=Math.cos(br),xg=cb*Math.cos(lr),yg=cb*Math.sin(lr),zg=Math.sin(br);
+    const xe=-.05487556*xg-.87343709*yg-.48383502*zg;
+    const ye=.49410943*xg-.44482963*yg+.74698224*zg;
+    const ze=-.86766615*xg-.19807637*yg+.45598378*zg;
+    const p=projectEquatorial(Math.atan2(ye,xe)/R,Math.asin(ze)/R);
+    if(!p)continue;
+    ctx.globalAlpha=.035+.055*(1-Math.abs(b)/15);
+    ctx.fillStyle="#9eb4ed";ctx.beginPath();ctx.arc(p.x,p.y,1.05+(1-Math.abs(b)/15)*.45,0,Math.PI*2);ctx.fill();
+  }
+  // Planetas y satélite natural (Luna), más galaxias destacadas por encima del horizonte.
+  for(const body of SKY_BODIES){
+    const p=projectEquatorial(body.ra,body.dec,body.kind==="moon");if(!p)continue;
+    ctx.globalAlpha=p.below?.42:.96;ctx.fillStyle=body.color;ctx.shadowColor=body.color;ctx.shadowBlur=body.kind==="moon"?9:6;
+    ctx.beginPath();ctx.arc(p.x,p.y,body.kind==="moon"?4.4:3.5,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=0;ctx.font="600 12px system-ui";ctx.fillText(p.below?"Luna (bajo horizonte)":body.name,p.x+7,p.y-6);
+  }
+  for(const galaxy of SKY_GALAXIES){
+    const p=projectEquatorial(galaxy.ra,galaxy.dec);if(!p)continue;
+    ctx.globalAlpha=.82;ctx.strokeStyle="#d4c7ff";ctx.lineWidth=1;
+    ctx.beginPath();ctx.ellipse(p.x,p.y,4.2,2.7,-.35,0,Math.PI*2);ctx.stroke();
+    ctx.font="500 11px system-ui";ctx.fillStyle="#d4c7ff";ctx.fillText(galaxy.name,p.x+7,p.y-5);
+  }
   for (const {x,y,magnitude} of projected.values()){
     const dot = Math.max(.65,Math.min(2,1.7-(magnitude+1)*.22));
     const opacity = Math.max(.22,Math.min(.95,.95-(magnitude+1.5)*.14));
