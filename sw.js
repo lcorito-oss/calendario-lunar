@@ -1,4 +1,4 @@
-const CACHE = "calendario-lunar-v1";
+const CACHE = "calendario-lunar-v2";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,7 @@ const ASSETS = [
   "./assets/favicon-32.png",
   "./assets/favicon-32-dark.png",
   "./assets/favicon-180.png",
+  "./assets/favicon-192.png",
   "./assets/favicon-512.png",
   "./assets/favicon.ico"
 ];
