@@ -62,7 +62,6 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .list{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:8px}
 .list li{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0}
 .list img,.list svg{width:24px;height:24px;flex:none}
-.list strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(.72rem,1.7vw,.95rem)}
 .list .t{margin-left:auto;flex:none;color:var(--muted);font-size:clamp(.68rem,1.5vw,.9rem);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .list li.eclipse-entry strong{color:var(--eclipse)}
 .note{color:var(--muted);font-size:.85rem;margin-top:24px}
@@ -72,6 +71,22 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .tonight p{margin:0;color:var(--muted);font-size:.92rem}
 .tonight .st{color:var(--accent);font-weight:600}
 .tonight .st.down{color:var(--muted)}
+.sub{font-size:1.25rem;margin:28px 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:0 0 20px}
+.card h2{font-size:1.15rem;margin:0 0 8px}
+.card p{margin:0;color:var(--muted);font-size:.92rem}
+.mira-wrap{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.compass{flex:none;width:min(190px,44vw);height:auto}
+.mira-data{flex:1;min-width:200px}
+.tag{display:inline-block;font-size:.68rem;line-height:1;border:1px solid var(--accent);color:var(--accent);border-radius:20px;padding:3px 8px;margin-left:6px;vertical-align:middle;white-space:nowrap}
+.list .col{flex:1;min-width:0}
+.list .col strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:clamp(.72rem,1.7vw,.95rem)}
+.list .tip{display:block;color:var(--muted);font-size:.78rem;white-space:normal}
+.list li.inter strong{font-weight:400;color:var(--muted)}
+.cycle{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:12px 0 4px;max-width:340px}
+.cycle-fill{height:100%;background:var(--accent);border-radius:6px}
+.cycle-text{color:var(--muted);font-size:.85rem;margin:0 0 10px}
+.share-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 @media (max-width:520px){.cell{min-height:80px}.cell img,.cell svg{width:28px;height:28px}.cell .ev{font-size:.62rem}}
 </style>
 </head>
@@ -84,10 +99,17 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
       <h1 id="heroName"></h1>
       <p class="date" id="heroDate"></p>
       <dl id="heroData"></dl>
+      <div class="cycle" aria-hidden="true"><div class="cycle-fill" id="cycleFill"></div></div>
+      <p class="cycle-text" id="cycleText"></p>
+      <div class="share-row"><button id="shareBtn" type="button">Compartir</button><button id="icsBtn" type="button">Guardar en el calendario</button></div>
     </div>
   </section>
 
   <section class="tonight" id="tonight" aria-live="polite"></section>
+
+  <section class="card" id="mira" aria-live="polite"></section>
+
+  <section class="card" id="sol" aria-live="polite"></section>
 
   <div class="bar">
     <h2 id="monthTitle"></h2>
@@ -100,7 +122,10 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
   <div class="scroll"><div class="grid" id="grid"></div></div>
 
   <ul class="list" id="events"></ul>
-  <p class="note">Horas para San Francisco del Oro, Chihuahua (UTC−6). Fondo estelar simulado para el cielo local cerca del cenit; cambia con la hora y la estación. Eclipses: predicciones de Fred Espenak, NASA GSFC; máximo en hora local aproximada. La región de visibilidad es general y depende de la ubicación exacta. Cálculo astronómico aproximado: la salida y puesta de la luna pueden variar unos minutos según el relieve del horizonte. El dibujo corresponde al hemisferio norte.</p>
+
+  <h2 class="sub">Próximos eventos</h2>
+  <ul class="list" id="proximos"></ul>
+  <p class="note">Horas para San Francisco del Oro, Chihuahua (UTC−6). Fondo estelar simulado para el cielo local cerca del cenit; cambia con la hora y la estación. Eclipses: predicciones de Fred Espenak, NASA GSFC; máximo en hora local aproximada. La región de visibilidad es general y depende de la ubicación exacta. Cálculo astronómico aproximado: la salida y puesta de la luna pueden variar unos minutos según el relieve del horizonte. La distancia a la Luna es aproximada (±5.000 km). El dibujo corresponde al hemisferio norte.</p>
 </main>
 
 <script>
@@ -110,6 +135,46 @@ const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto"
 const DIAS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const MAIN = ["Luna nueva","Cuarto creciente","Luna llena","Cuarto menguante"];
 const NOMBRES = ["Luna nueva","Luna creciente","Cuarto creciente","Gibosa creciente","Luna llena","Gibosa menguante","Cuarto menguante","Luna menguante"];
+// Nombres tradicionales de las lunas llenas (fechas locales de San Francisco del Oro, UTC−6).
+// Verificados contra timeanddate.com y el catálogo de fases del USNO: las fechas locales
+// coinciden con los instantes calculados por esta misma app (eventsBetween).
+const NOMBRADAS = {
+  "2026-01-03": { nombre:"Luna del Lobo", tag:"Superluna" },
+  "2026-02-01": { nombre:"Luna de la Nieve" },
+  "2026-03-03": { nombre:"Luna del Gusano", tag:"Eclipse total" },
+  "2026-04-01": { nombre:"Luna Rosa" },
+  "2026-05-01": { nombre:"Luna de las Flores", tag:"Microluna" },
+  "2026-05-31": { nombre:"Luna azul", tag:"Microluna" },
+  "2026-06-29": { nombre:"Luna de Fresa" },
+  "2026-07-29": { nombre:"Luna del Ciervo" },
+  "2026-08-27": { nombre:"Luna del Esturión" },
+  "2026-09-26": { nombre:"Luna de la Cosecha" },
+  "2026-10-25": { nombre:"Luna del Cazador" },
+  "2026-11-24": { nombre:"Luna del Castor", tag:"Superluna" },
+  "2026-12-23": { nombre:"Luna Fría", tag:"Superluna" },
+  "2027-01-22": { nombre:"Luna del Lobo", tag:"Superluna" },
+  "2027-02-20": { nombre:"Luna de la Nieve", tag:"Eclipse penumbral" },
+  "2027-03-22": { nombre:"Luna del Gusano" },
+  "2027-04-20": { nombre:"Luna Rosa" },
+  "2027-05-20": { nombre:"Luna de las Flores", tag:"Luna azul" },
+  "2027-06-18": { nombre:"Luna de Fresa" },
+  "2027-07-18": { nombre:"Luna del Ciervo", tag:"Eclipse penumbral" },
+  "2027-08-17": { nombre:"Luna del Esturión", tag:"Eclipse penumbral" },
+  "2027-08-31": { nombre:"Luna negra", nueva:true },
+  "2027-09-15": { nombre:"Luna de la Cosecha" },
+  "2027-10-15": { nombre:"Luna del Cazador" },
+  "2027-11-13": { nombre:"Luna del Castor" },
+  "2027-12-13": { nombre:"Luna Fría" }
+};
+const TIPS8 = {
+  1: "Se ve mejor al atardecer, hacia el oeste",
+  3: "Se ve mejor en la tarde y casi toda la noche",
+  5: "Se ve mejor en la segunda mitad de la noche",
+  7: "Se ve mejor antes del amanecer, hacia el este"
+};
+const PUNTOS = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSO","SO","OSO","O","ONO","NO","NNO"];
+const punto = az => PUNTOS[Math.round((((az % 360) + 360) % 360)/22.5) % 16];
+const dkey = d => d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 const STAR_CATALOG = [
   [32768,102.4839,-50.6144,2.94],
   [71683,219.9204,-60.8351,-0.01],
@@ -836,6 +901,41 @@ function moonAlt(t){
   const H = (280.46061837 + 360.98564736629*d + LON)*R - ra;
   return Math.asin(Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(H))/R;
 }
+function moonRaDec(t){
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const Mp = 134.963 + 13.064993*d, D = 297.850 + 12.190749*d, g = 357.529 + 0.985600*d, F = 93.272 + 13.229350*d;
+  const lm = (218.316 + 13.176396*d + 6.289*Math.sin(Mp*R) + 1.274*Math.sin((2*D-Mp)*R) + 0.658*Math.sin(2*D*R) + 0.214*Math.sin(2*Mp*R) - 0.186*Math.sin(g*R))*R;
+  const b = 5.128*Math.sin(F*R)*R, eps = (23.439 - 0.0000004*d)*R;
+  const ra = Math.atan2(Math.sin(lm)*Math.cos(eps) - Math.tan(b)*Math.sin(eps), Math.cos(lm));
+  const dec = Math.asin(Math.sin(b)*Math.cos(eps) + Math.cos(b)*Math.sin(eps)*Math.sin(lm));
+  return { ra, dec };
+}
+function moonAltAz(t){
+  const { ra, dec } = moonRaDec(t);
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const H = (280.46061837 + 360.98564736629*d + LON)*R - ra;
+  const sinAlt = Math.sin(LAT*R)*Math.sin(dec) + Math.cos(LAT*R)*Math.cos(dec)*Math.cos(H);
+  const alt = Math.asin(Math.max(-1, Math.min(1, sinAlt)));
+  const cosAlt = Math.max(.0001, Math.cos(alt));
+  const sinAz = -Math.cos(dec)*Math.sin(H)/cosAlt;
+  const cosAz = (Math.sin(dec) - Math.sin(alt)*Math.sin(LAT*R))/(cosAlt*Math.cos(LAT*R));
+  let az = Math.atan2(sinAz, cosAz)/R; if (az < 0) az += 360;
+  return { alt: alt/R, az };
+}
+function moonTransit(y, m, d){
+  const t0 = Date.UTC(y, m, d, 6), t1 = t0 + 86400000;
+  let lo = t0, hi = t1;
+  for (let i = 0; i < 40; i++){
+    const m1 = lo + (hi-lo)/3, m2 = hi - (hi-lo)/3;
+    if (moonAlt(m1) < moonAlt(m2)) lo = m1; else hi = m2;
+  }
+  return (lo+hi)/2;
+}
+function moonDist(t){
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const Mp = 134.963 + 13.064993*d, D = 297.850 + 12.190749*d;
+  return 385001 - 20905*Math.cos(Mp*R) - 3699*Math.cos((2*D-Mp)*R) - 2956*Math.cos(2*D*R);
+}
 function riseSet(y, m, d){
   const t0 = Date.UTC(y, m, d, 6), S = 600000, f = t => moonAlt(t) - 0.125, out = { rise: null, set: null };
   for (let t = t0; t < t0 + 86400000; t += S){
@@ -979,6 +1079,52 @@ function drawSky(){
   ctx.restore();
 }
 
+function sunPos(t){
+  const d = t/86400000 + 2440587.5 - 2451545;
+  const T = d/36525;
+  const L0 = (280.46646 + T*(36000.76983 + T*0.0003032)) % 360;
+  const M = 357.52911 + T*(35999.05029 - 0.0001537*T);
+  const C = Math.sin(M*R)*(1.914602 - T*(0.004817 + 0.000014*T)) + Math.sin(2*M*R)*(0.019993 - 0.000101*T) + Math.sin(3*M*R)*0.000289;
+  const trueLong = L0 + C;
+  const omega = 125.04 - 1934.136*T;
+  const lambda = trueLong - 0.00569 - 0.00478*Math.sin(omega*R);
+  const eps0 = 23 + (26 + (21.448 - T*(46.815 + T*(0.00059 - T*0.001813)))/60)/60;
+  const eps = eps0 + 0.00256*Math.cos(omega*R);
+  const dec = Math.asin(Math.sin(eps*R)*Math.sin(lambda*R))/R;
+  const raDeg = Math.atan2(Math.cos(eps*R)*Math.sin(lambda*R), Math.cos(lambda*R))/R;
+  // La diferencia L0 − RA debe envolverse a [−180, 180]: atan2 devuelve RA en
+  // [−180, 180] y sin envolver la ecuación del tiempo salía 1440 min (un día) de más.
+  const eqTime = 4*((((L0 - 0.0057183 - raDeg) % 360) + 540) % 360 - 180);
+  return { dec, eqTime };
+}
+function sunEvent(d0, zenithDeg, which){
+  const { dec, eqTime } = sunPos(d0 + 43200000);
+  const cosH = (Math.cos(zenithDeg*R) - Math.sin(LAT*R)*Math.sin(dec*R))/(Math.cos(LAT*R)*Math.cos(dec*R));
+  if (cosH < -1 || cosH > 1) return null;
+  const H = Math.acos(cosH)/R;
+  const solarNoonMin = 720 - 4*LON - eqTime;
+  const mins = which === "rise" ? solarNoonMin - H*4 : solarNoonMin + H*4;
+  return d0 + mins*60000;
+}
+function sunGolden(d0, which){
+  const { dec, eqTime } = sunPos(d0 + 43200000);
+  const cosH = (Math.sin(6*R) - Math.sin(LAT*R)*Math.sin(dec*R))/(Math.cos(LAT*R)*Math.cos(dec*R));
+  if (cosH < -1 || cosH > 1) return null;
+  const H = Math.acos(cosH)/R;
+  const solarNoonMin = 720 - 4*LON - eqTime;
+  return d0 + (which === "rise" ? solarNoonMin - H*4 : solarNoonMin + H*4)*60000;
+}
+function darknessOverlap(d0){
+  const start = sunEvent(d0, 108, "set");
+  const end = sunEvent(d0 + 86400000, 108, "rise");
+  if (!start || !end) return "No hay oscuridad total esta noche";
+  let first = null, last = null;
+  for (let t = start; t <= end; t += 600000){
+    if (moonAlt(t) > 0){ if (first === null) first = t; last = t; }
+  }
+  if (first === null) return "No coincide con la oscuridad esta noche";
+  return "Sí, se ve de " + hm(first) + " a " + hm(last);
+}
 function eventsBetween(t0, t1){
   const out = [], H = 3600000;
   for (let t = t0; t < t1; t += H){
@@ -992,6 +1138,18 @@ function eventsBetween(t0, t1){
   return out;
 }
 
+function phases8Between(t0, t1){
+  const out = [], H = 3600000;
+  for (let t = t0; t < t1; t += H){
+    const q0 = Math.floor(elong(t)/45), q1 = Math.floor(elong(t+H)/45);
+    if (q0 !== q1){
+      let lo = t, hi = t + H;
+      for (let i = 0; i < 22; i++){ const m = (lo+hi)/2; Math.floor(elong(m)/45) === q0 ? lo = m : hi = m; }
+      out.push({ t: hi, i8: q1 % 8 });
+    }
+  }
+  return out;
+}
 function cityDay(t){ const c = new Date(t - 6*36e5); return new Date(c.getUTCFullYear(), c.getUTCMonth(), c.getUTCDate()); }
 let now = cityDay(Date.now());
 let year = now.getFullYear(), month = now.getMonth(), sel = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -1007,7 +1165,10 @@ function hero(){
   $("heroName").textContent = nombre(e);
   $("heroDate").textContent = sel.toLocaleDateString("es", { weekday:"long", day:"numeric", month:"long", year:"numeric" }) + ", San Francisco del Oro";
   const rs = riseSet(sel.getFullYear(), sel.getMonth(), sel.getDate());
-  $("heroData").innerHTML = `<dt>Sale la luna</dt><dd>${hm(rs.rise)}</dd><dt>Se oculta la luna</dt><dd>${hm(rs.set)}</dd><dt>Iluminación</dt><dd>${Math.round(illum(e)*100)}%</dd><dt>Edad lunar</dt><dd>${(e/360*SYN).toFixed(1)} días</dd><dt>Fase</dt><dd>${e < 180 ? "Creciente" : "Menguante"}</dd>`;
+  $("heroData").innerHTML = `<dt>Sale la luna</dt><dd>${hm(rs.rise)}</dd><dt>Se oculta la luna</dt><dd>${hm(rs.set)}</dd><dt>Iluminación</dt><dd>${Math.round(illum(e)*100)}%</dd><dt>Edad lunar</dt><dd>${(e/360*SYN).toFixed(1)} días</dd><dt>Fase</dt><dd>${e < 180 ? "Creciente" : "Menguante"}</dd><dt>Distancia (aprox.)</dt><dd>${Math.round(moonDist(noon)).toLocaleString("es-MX")} km</dd>`;
+  const age = e/360*SYN;
+  $("cycleFill").style.width = Math.min(100, age/SYN*100).toFixed(1) + "%";
+  $("cycleText").textContent = "Día " + age.toFixed(1) + " de 29,5 · " + (e < 180 ? "creciendo" : "menguando");
 }
 
 function tonight(){
@@ -1033,18 +1194,126 @@ function tonight(){
     '<p>' + fullText + '</p></div>';
 }
 
+function compassSvg(az, alt){
+  const below = alt < 0;
+  const mx = (100 + 74*Math.sin(az*R)).toFixed(1), my = (100 - 74*Math.cos(az*R)).toFixed(1);
+  let ticks = "";
+  for (let a = 0; a < 360; a += 30){
+    const x1 = (100 + 82*Math.sin(a*R)).toFixed(1), y1 = (100 - 82*Math.cos(a*R)).toFixed(1);
+    const x2 = (100 + 88*Math.sin(a*R)).toFixed(1), y2 = (100 - 88*Math.cos(a*R)).toFixed(1);
+    ticks += '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke="currentColor" stroke-width="1" opacity=".5"/>';
+  }
+  return '<svg class="compass" viewBox="0 0 200 200" role="img" aria-label="Brújula: la Luna está hacia el ' + punto(az) + ', azimut ' + Math.round(az) + ' grados">' +
+    '<circle cx="100" cy="100" r="88" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".55"/>' +
+    '<circle cx="100" cy="100" r="60" fill="none" stroke="currentColor" stroke-width=".8" opacity=".25"/>' +
+    ticks +
+    '<text x="100" y="26" text-anchor="middle" font-size="16" font-weight="700" fill="currentColor">N</text>' +
+    '<text x="176" y="106" text-anchor="middle" font-size="13" fill="currentColor">E</text>' +
+    '<text x="100" y="188" text-anchor="middle" font-size="13" fill="currentColor">S</text>' +
+    '<text x="24" y="106" text-anchor="middle" font-size="13" fill="currentColor">O</text>' +
+    '<line x1="100" y1="100" x2="' + mx + '" y2="' + my + '" stroke="#f4d98a" stroke-width="2"' + (below ? ' stroke-dasharray="4 3"' : '') + '/>' +
+    '<circle cx="' + mx + '" cy="' + my + '" r="9" fill="' + (below ? "none" : "#f4d98a") + '" stroke="#f4d98a" stroke-width="2"/>' +
+    '<circle cx="100" cy="100" r="3" fill="currentColor"/>' +
+    '</svg>';
+}
+function mira(){
+  const t = Date.now();
+  const pos = moonAltAz(t);
+  const today = cityDay(t);
+  const rs = riseSet(today.getFullYear(), today.getMonth(), today.getDate());
+  const tr = moonTransit(today.getFullYear(), today.getMonth(), today.getDate());
+  const trPos = moonAltAz(tr);
+  const azRise = rs.rise ? moonAltAz(rs.rise).az : null;
+  const azSet = rs.set ? moonAltAz(rs.set).az : null;
+  $("mira").innerHTML =
+    '<h2>¿Dónde miro?</h2><div class="mira-wrap">' + compassSvg(pos.az, pos.alt) +
+    '<dl class="mira-data">' +
+    '<dt>Ahora mismo</dt><dd>' + (pos.alt > 0 ? "Se ve · " + Math.round(pos.alt) + "° de altura" : "Bajo el horizonte") + '</dd>' +
+    '<dt>Dirección</dt><dd>' + punto(pos.az) + ' (' + Math.round(pos.az) + '°)</dd>' +
+    '<dt>Sale por</dt><dd>' + (azRise === null ? "—" : punto(azRise) + ' (' + Math.round(azRise) + '°) · ' + hm(rs.rise)) + '</dd>' +
+    '<dt>Se pone por</dt><dd>' + (azSet === null ? "—" : punto(azSet) + ' (' + Math.round(azSet) + '°) · ' + hm(rs.set)) + '</dd>' +
+    '<dt>Tránsito</dt><dd>' + hm(tr) + ' · altura máx. ' + Math.round(trPos.alt) + '°</dd>' +
+    '</dl></div>';
+}
+function sol(){
+  const today = cityDay(Date.now());
+  const d0 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const sr = sunEvent(d0, 90.833, "rise"), ss = sunEvent(d0, 90.833, "set");
+  const civR = sunEvent(d0, 96, "rise"), civS = sunEvent(d0, 96, "set");
+  const astS = sunEvent(d0, 108, "set"), astR2 = sunEvent(d0 + 86400000, 108, "rise");
+  const goldR = sunGolden(d0, "rise"), goldS = sunGolden(d0, "set");
+  $("sol").innerHTML =
+    '<h2>Sol y oscuridad</h2><dl>' +
+    '<dt>Amanecer</dt><dd>' + hm(sr) + '</dd>' +
+    '<dt>Atardecer</dt><dd>' + hm(ss) + '</dd>' +
+    '<dt>Hora dorada</dt><dd>' + hm(sr) + '–' + hm(goldR) + ' y ' + hm(goldS) + '–' + hm(ss) + '</dd>' +
+    '<dt>Hora azul</dt><dd>' + hm(civR) + '–' + hm(sr) + ' y ' + hm(ss) + '–' + hm(civS) + '</dd>' +
+    '<dt>Oscuridad total</dt><dd>' + hm(astS) + ' – ' + hm(astR2) + '</dd>' +
+    '<dt>Luna en la oscuridad</dt><dd>' + darknessOverlap(d0) + '</dd>' +
+    '</dl>';
+}
+function proximos(){
+  const today = cityDay(Date.now());
+  const tk = dkey(today);
+  const items = Object.keys(NOMBRADAS).filter(k => k >= tk).sort().slice(0, 4);
+  $("proximos").innerHTML = items.map(k => {
+    const ev = NOMBRADAS[k];
+    const parts = k.split("-").map(Number);
+    const dt = new Date(parts[0], parts[1]-1, parts[2]);
+    const days = Math.round((cityDay(Date.UTC(parts[0], parts[1]-1, parts[2], 12)) - today)/86400000);
+    const when = days === 0 ? "hoy" : days === 1 ? "mañana" : "en " + days + " días";
+    const tag = ev.tag ? '<span class="tag">' + ev.tag + '</span>' : "";
+    return '<li>' + moon(ev.nueva ? 0 : 180) + '<div class="col"><strong>' + ev.nombre + tag + '</strong></div><span class="t">' + dt.toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short" }) + ' · ' + when + '</span></li>';
+  }).join("");
+}
+function shareMoon(){
+  const e = elong(Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 18));
+  const text = nombre(e) + " — " + sel.getDate() + " de " + MESES[sel.getMonth()] + " de " + sel.getFullYear() + ", San Francisco del Oro. Iluminación " + Math.round(illum(e)*100) + "%.";
+  const url = location.href;
+  if (navigator.share) { navigator.share({ title: "Calendario lunar", text: text, url: url }).catch(() => {}); }
+  else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text + " " + url).then(() => {
+      const b = $("shareBtn"); b.textContent = "Enlace copiado";
+      setTimeout(() => { b.textContent = "Compartir"; }, 2000);
+    }).catch(() => {});
+  }
+}
+function icsText(){
+  const noon = Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 18);
+  const e = elong(noon);
+  const dayStart = Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 6);
+  const dayEv = eventsBetween(dayStart, dayStart + 86400000)[0];
+  const t0 = dayEv ? dayEv.t : noon;
+  const name = dayEv ? MAIN[dayEv.i] : nombre(e);
+  const pad = n => String(n).padStart(2, "0");
+  const fmt = d => d.getUTCFullYear() + pad(d.getUTCMonth()+1) + pad(d.getUTCDate()) + "T" + pad(d.getUTCHours()) + pad(d.getUTCMinutes()) + "00Z";
+  const rs = riseSet(sel.getFullYear(), sel.getMonth(), sel.getDate());
+  const desc = "Fase: " + name + ". Iluminación " + Math.round(illum(e)*100) + "%. Sale la luna " + hm(rs.rise) + ", se oculta " + hm(rs.set) + ". San Francisco del Oro.";
+  return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Calendario lunar//ES","BEGIN:VEVENT","UID:" + Date.now() + "@calendario-lunar","DTSTAMP:" + fmt(new Date()),"DTSTART:" + fmt(new Date(t0)),"DTEND:" + fmt(new Date(t0 + 3600000)),"SUMMARY:" + name,"DESCRIPTION:" + desc,"END:VEVENT","END:VCALENDAR"].join("\r\n");
+}
+function downloadIcs(){
+  const blob = new Blob([icsText()], { type: "text/calendar" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const pad = n => String(n).padStart(2, "0");
+  a.download = "luna-" + sel.getFullYear() + "-" + pad(sel.getMonth()+1) + "-" + pad(sel.getDate()) + ".ics";
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function render(){
   now = cityDay(Date.now());
   $("monthTitle").textContent = MESES[month] + " " + year;
   const first = new Date(year, month, 1), days = new Date(year, month+1, 0).getDate();
   const start = Date.UTC(year, month, 1, 6), end = Date.UTC(year, month+1, 1, 6);
   const phaseEvents = eventsBetween(start, end).map(ev => Object.assign({}, ev, { kind:"phase" }));
+  const phase8Events = phases8Between(start, end).map(ev => Object.assign({}, ev, { kind:"phase" }));
   const eclipseEvents = ECLIPSES
     .map(ev => Object.assign({}, ev, { t:Date.parse(ev.utc), kind:"eclipse" }))
     .filter(ev => ev.t >= start && ev.t < end);
-  const evs = phaseEvents.concat(eclipseEvents).sort((a,b) => a.t-b.t);
+  const evs = phase8Events.concat(eclipseEvents).sort((a,b) => a.t-b.t);
   const byDay = {};
-  evs.forEach(ev => {
+  // Las celdas del calendario solo resaltan las 4 fases principales (como antes);
+  // las 8 fases se muestran en la lista de abajo.
+  phaseEvents.concat(eclipseEvents).forEach(ev => {
     const k = key(cityDay(ev.t));
     if (!byDay[k]) byDay[k] = [];
     byDay[k].push(ev);
@@ -1070,12 +1339,19 @@ function render(){
     const dateText = dt.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short",timeZone:TZ});
     if (ev.kind === "eclipse") {
       const visibility = ev.america ? "en parte de América" : "fuera de América";
-      return '<li class="eclipse-entry">' + moon(180) + '<strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong><span class="t">' + dateText + ' · Máx. ' + hora(dt) + ' · ' + visibility + '</span></li>';
+      return '<li class="eclipse-entry">' + moon(180) + '<div class="col"><strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong></div><span class="t">' + dateText + ' · Máx. ' + hora(dt) + ' · ' + visibility + '</span></li>';
     }
-    return '<li>' + moon(ev.i*90) + '<strong>' + MAIN[ev.i] + '</strong><span class="t">' + dateText + ' · ' + hora(dt) + '</span></li>';
+    const named = ev.i8 === 4 ? NOMBRADAS[dkey(cityDay(ev.t))] : null;
+    const title = NOMBRES[ev.i8] + (named ? " · " + named.nombre : "");
+    const tag = named && named.tag ? '<span class="tag">' + named.tag + '</span>' : "";
+    const tip = TIPS8[ev.i8] ? '<span class="tip">' + TIPS8[ev.i8] + '</span>' : "";
+    return '<li' + (ev.i8 % 2 ? ' class="inter"' : '') + '>' + moon(ev.i8*45) + '<div class="col"><strong>' + title + tag + '</strong>' + tip + '</div><span class="t">' + dateText + ' · ' + hora(dt) + '</span></li>';
   }).join("");
   hero();
   tonight();
+  mira();
+  sol();
+  proximos();
   drawSky();
 }
 $("grid").addEventListener("click", e => {
@@ -1086,10 +1362,12 @@ function go(n){ const d = new Date(year, month+n, 1); year = d.getFullYear(); mo
 $("prev").onclick = () => go(-1);
 $("next").onclick = () => go(1);
 $("today").onclick = () => { now = cityDay(Date.now()); year = now.getFullYear(); month = now.getMonth(); sel = new Date(year, month, now.getDate()); render(); };
+$("shareBtn").onclick = () => shareMoon();
+$("icsBtn").onclick = () => downloadIcs();
 render();
 window.addEventListener("resize",drawSky);
 window.addEventListener("scroll",drawSky,{passive:true});
-window.setInterval(() => { drawSky(); tonight(); }, 60000);
+window.setInterval(() => { drawSky(); tonight(); mira(); sol(); }, 60000);
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
 }
