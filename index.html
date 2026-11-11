@@ -15,6 +15,7 @@
 :root{
   --bg:#05070d; --panel:#0d121c; --line:#1f2836; --text:#e8ebf2; --muted:#8c97ab;
   --lit:#e9e6da; --dark:#1a2030; --accent:#8fd694; --accent-bg:#122219; --eclipse:#d5b9ff;
+  --tl-night:#0b1020; --tl-blue:#2c4a7a; --tl-gold:#d9a441; --tl-day:#f4d98a;
   box-sizing:border-box;
   color-scheme:dark;
 }
@@ -26,6 +27,7 @@
 }
 :root[data-theme="light"]{--bg:#f3f1ea;--panel:#fbfaf6;--line:#d9d5c8;--text:#171a22;--muted:#667085;--lit:#f4d98a;--dark:#3a4256;--accent:#1f7a3d;--accent-bg:#e4f1e2;--eclipse:#7047a1;color-scheme:light}
 :root[data-theme="dark"]{--bg:#05070d;--panel:#0d121c;--line:#1f2836;--text:#e8ebf2;--muted:#8c97ab;--lit:#e9e6da;--dark:#1a2030;--accent:#8fd694;--accent-bg:#122219;color-scheme:dark}
+:root[data-theme="red"]{--bg:#0c0102;--panel:#160404;--line:#3d1210;--text:#f0c6bd;--muted:#b07a6f;--lit:#f0c9b8;--dark:#260a08;--accent:#ff7a6b;--accent-bg:#2a0d09;--eclipse:#ff9d94;--tl-night:#1a0505;--tl-blue:#5a1f1c;--tl-gold:#a03d2a;--tl-day:#7a3a28;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
@@ -38,7 +40,7 @@ h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;margin:0}
 .hero .date{color:var(--muted);margin:4px 0 14px;text-transform:capitalize}
 dl{display:grid;grid-template-columns:auto auto;gap:4px 28px;margin:0;font-size:1rem}
 dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
-.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .bar h2{font-size:1.6rem;text-transform:capitalize}
 .btns{display:flex;gap:2px}
 button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
@@ -87,6 +89,17 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .cycle-fill{height:100%;background:var(--accent);border-radius:6px}
 .cycle-text{color:var(--muted);font-size:.85rem;margin:0 0 10px}
 .share-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+#redBtn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg)}
+.tl{position:relative;margin:22px 0 2px}
+.tl-bar{display:flex;height:14px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.tl-bar>div{height:100%}
+.tl-now{position:absolute;top:-5px;bottom:-5px;width:2px;background:#ff5a4e;z-index:1}
+.tl-now::after{content:"ahora";position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:.62rem;color:var(--muted);white-space:nowrap}
+.tl-hours{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:2px}
+.tl-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:8px}
+.tl-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+:root[data-theme="red"] .hero img,:root[data-theme="red"] .hero svg{filter:brightness(.62) sepia(1) hue-rotate(-40deg) saturate(2.4) drop-shadow(0 0 8px rgba(255,90,70,.5)) drop-shadow(0 0 22px rgba(255,90,70,.25))}
+:root[data-theme="red"] .cell img,:root[data-theme="red"] .cell svg,:root[data-theme="red"] .tonight svg,:root[data-theme="red"] .list img,:root[data-theme="red"] .list svg{filter:brightness(.7) sepia(1) hue-rotate(-40deg) saturate(2.4) drop-shadow(0 0 4px rgba(255,90,70,.35))}
 @media (max-width:520px){.cell{min-height:80px}.cell img,.cell svg{width:28px;height:28px}.cell .ev{font-size:.62rem}}
 </style>
 </head>
@@ -117,6 +130,7 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
       <button id="prev" aria-label="Mes anterior">‹</button>
       <button id="today">Hoy</button>
       <button id="next" aria-label="Mes siguiente">›</button>
+      <button id="redBtn" type="button" aria-pressed="false">Modo rojo</button>
     </div>
   </div>
   <div class="scroll"><div class="grid" id="grid"></div></div>
@@ -967,6 +981,7 @@ function moonSvg(e, size){
   const lightPath = "M50 4 A46 46 0 0 1 50 96 A" + rx + " 46 0 0 " + sweep + " 50 4 Z";
   const transform = waning ? ' transform="translate(100 0) scale(-1 1)"' : "";
   const litClip = id + "-light";
+  const darkClip = id + "-dark";
   let illuminated = "";
   if (illum(angle) > .003) {
     illuminated = '<g clip-path="url(#' + litClip + ')">' +
@@ -979,8 +994,10 @@ function moonSvg(e, size){
       '<radialGradient id="' + id + '-shade" cx="35%" cy="28%" r="85%"><stop offset=".35" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#252a32" stop-opacity=".72"/></radialGradient>' +
       '<radialGradient id="' + id + '-night" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#343a44"/><stop offset="1" stop-color="#11151c"/></radialGradient>' +
       '<clipPath id="' + litClip + '"><path d="' + lightPath + '"' + transform + '/></clipPath>' +
+      '<clipPath id="' + darkClip + '" clip-rule="evenodd"><circle cx="50" cy="50" r="46"/><path d="' + lightPath + '"' + transform + '/></clipPath>' +
     '</defs>' +
     '<circle cx="50" cy="50" r="46" fill="url(#' + id + '-night)"/>' +
+    '<g clip-path="url(#' + darkClip + ')" opacity=".08"><image href="assets/moon-surface.png" x="4" y="4" width="92" height="92" preserveAspectRatio="xMidYMid meet"/></g>' +
     illuminated +
     '<circle cx="50" cy="50" r="46" fill="none" stroke="#d5d3ca" stroke-opacity=".32" stroke-width="1.1"/>' +
     '</svg>';
@@ -1006,6 +1023,11 @@ function drawSky(){
   canvas.width = Math.round(width*dpr);
   canvas.height = Math.round(height*dpr);
   const ctx = canvas.getContext("2d");
+  const redSky = document.documentElement.dataset.theme === "red";
+  const starCol = redSky ? "#ffb0a3" : "#dce8ff";
+  const starGlow = redSky ? "#ff8a76" : "#b8d1ff";
+  const mwCol = redSky ? "#a04a3c" : "#9eb4ed";
+  const galCol = redSky ? "#ff8f84" : "#d4c7ff";
   ctx.setTransform(dpr,0,0,dpr,0,0);
   ctx.clearRect(0,0,width,height);
 
@@ -1055,20 +1077,20 @@ function drawSky(){
     const p=projectEquatorial(Math.atan2(ye,xe)/R,Math.asin(ze)/R);
     if(!p)continue;
     ctx.globalAlpha=.035+.055*(1-Math.abs(b)/15);
-    ctx.fillStyle="#9eb4ed";ctx.beginPath();ctx.arc(p.x,p.y,1.05+(1-Math.abs(b)/15)*.45,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=mwCol;ctx.beginPath();ctx.arc(p.x,p.y,1.05+(1-Math.abs(b)/15)*.45,0,Math.PI*2);ctx.fill();
   }
   // Galaxias destacadas por encima del horizonte.
   for(const galaxy of SKY_GALAXIES){
     const p=projectEquatorial(galaxy.ra,galaxy.dec);if(!p)continue;
-    ctx.globalAlpha=.82;ctx.strokeStyle="#d4c7ff";ctx.lineWidth=1;
+    ctx.globalAlpha=.82;ctx.strokeStyle=galCol;ctx.lineWidth=1;
     ctx.beginPath();ctx.ellipse(p.x,p.y,4.2,2.7,-.35,0,Math.PI*2);ctx.stroke();
   }
   for (const {x,y,magnitude} of projected.values()){
     const dot = Math.max(.65,Math.min(2,1.7-(magnitude+1)*.22));
     const opacity = Math.max(.22,Math.min(.95,.95-(magnitude+1.5)*.14));
     ctx.globalAlpha = opacity;
-    ctx.fillStyle = "#dce8ff";
-    ctx.shadowColor = "#b8d1ff";
+    ctx.fillStyle = starCol;
+    ctx.shadowColor = starGlow;
     ctx.shadowBlur = magnitude < 1 ? 7 : 2.5;
     ctx.beginPath();
     ctx.arc(x,y,dot,0,Math.PI*2);
@@ -1171,6 +1193,12 @@ function hero(){
   $("cycleText").textContent = "Día " + age.toFixed(1) + " de 29,5 · " + (e < 180 ? "creciendo" : "menguando");
 }
 
+function cuenta(ms){
+  const m = Math.max(0, Math.round(ms/60000));
+  const h = Math.floor(m/60), mm = m % 60;
+  if (h === 0) return mm + " min";
+  return h + " h" + (mm ? " " + mm + " min" : "");
+}
 function tonight(){
   const t = Date.now();
   const e = elong(t);
@@ -1187,15 +1215,22 @@ function tonight(){
     fullText = "Próxima luna llena en " + days + (days === 1 ? " día" : " días") + " · " + new Date(next.t).toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short", timeZone: TZ });
   }
   const visible = alt > 0;
+  let cuentaTxt = "";
+  if (visible && rs.set) cuentaTxt = "Se pone en " + cuenta(rs.set - t);
+  else if (!visible && rs.rise && rs.rise > t) cuentaTxt = "Sale en " + cuenta(rs.rise - t);
+  else if (!visible && rs.set && rs.set < t) cuentaTxt = "Se puso hace " + cuenta(t - rs.set);
+  else if (!visible && rs.rise && rs.rise < t) cuentaTxt = "Salió hace " + cuenta(t - rs.rise);
   $("tonight").innerHTML = moon(e) +
     '<div><h2>Esta noche</h2>' +
     '<p><span class="st' + (visible ? '' : ' down') + '">' + (visible ? "La Luna se ve ahora" : "La Luna está bajo el horizonte") + '</span>' +
-    ' · Sale ' + hm(rs.rise) + ' · Se oculta ' + hm(rs.set) + '</p>' +
+    (cuentaTxt ? ' · ' + cuentaTxt : '') + '</p>' +
+    '<p>Sale ' + hm(rs.rise) + ' · Se oculta ' + hm(rs.set) + '</p>' +
     '<p>' + fullText + '</p></div>';
 }
 
 function compassSvg(az, alt){
   const below = alt < 0;
+  const gold = document.documentElement.dataset.theme === "red" ? "#ff7a6b" : "#f4d98a";
   const mx = (100 + 74*Math.sin(az*R)).toFixed(1), my = (100 - 74*Math.cos(az*R)).toFixed(1);
   let ticks = "";
   for (let a = 0; a < 360; a += 30){
@@ -1211,8 +1246,8 @@ function compassSvg(az, alt){
     '<text x="176" y="106" text-anchor="middle" font-size="13" fill="currentColor">E</text>' +
     '<text x="100" y="188" text-anchor="middle" font-size="13" fill="currentColor">S</text>' +
     '<text x="24" y="106" text-anchor="middle" font-size="13" fill="currentColor">O</text>' +
-    '<line x1="100" y1="100" x2="' + mx + '" y2="' + my + '" stroke="#f4d98a" stroke-width="2"' + (below ? ' stroke-dasharray="4 3"' : '') + '/>' +
-    '<circle cx="' + mx + '" cy="' + my + '" r="9" fill="' + (below ? "none" : "#f4d98a") + '" stroke="#f4d98a" stroke-width="2"/>' +
+    '<line x1="100" y1="100" x2="' + mx + '" y2="' + my + '" stroke="' + gold + '" stroke-width="2"' + (below ? ' stroke-dasharray="4 3"' : '') + '/>' +
+    '<circle cx="' + mx + '" cy="' + my + '" r="9" fill="' + (below ? "none" : gold) + '" stroke="' + gold + '" stroke-width="2"/>' +
     '<circle cx="100" cy="100" r="3" fill="currentColor"/>' +
     '</svg>';
 }
@@ -1235,6 +1270,23 @@ function mira(){
     '<dt>Tránsito</dt><dd>' + hm(tr) + ' · altura máx. ' + Math.round(trPos.alt) + '°</dd>' +
     '</dl></div>';
 }
+function timeline24(d0, sr, ss, civR, civS, goldR, goldS){
+  if (!sr || !ss || !civR || !civS || !goldR || !goldS) return "";
+  const day = 86400000;
+  const start = d0 + 6*3600000; // medianoche local (UTC−6 todo el año); d0 es medianoche UTC
+  const segs = [
+    [start, civR, "night"], [civR, sr, "blue"], [sr, goldR, "gold"], [goldR, goldS, "day"],
+    [goldS, ss, "gold"], [ss, civS, "blue"], [civS, start + day, "night"]
+  ];
+  const bars = segs.map(s => {
+    const a = Math.max(s[0], start), b = Math.min(s[1], start + day);
+    return '<div style="width:' + Math.max(0, (b-a)/day*100).toFixed(2) + '%;background:var(--tl-' + s[2] + ')"></div>';
+  }).join("");
+  const nowPct = Math.max(0, Math.min(100, (Date.now() - start)/day*100)).toFixed(1);
+  return '<div class="tl"><div class="tl-bar">' + bars + '</div><span class="tl-now" style="left:' + nowPct + '%"></span></div>' +
+    '<div class="tl-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>' +
+    '<div class="tl-legend"><span><i style="background:var(--tl-night)"></i>Noche</span><span><i style="background:var(--tl-blue)"></i>Hora azul</span><span><i style="background:var(--tl-gold)"></i>Hora dorada</span><span><i style="background:var(--tl-day)"></i>Día</span></div>';
+}
 function sol(){
   const today = cityDay(Date.now());
   const d0 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
@@ -1250,7 +1302,7 @@ function sol(){
     '<dt>Hora azul</dt><dd>' + hm(civR) + '–' + hm(sr) + ' y ' + hm(ss) + '–' + hm(civS) + '</dd>' +
     '<dt>Oscuridad total</dt><dd>' + hm(astS) + ' – ' + hm(astR2) + '</dd>' +
     '<dt>Luna en la oscuridad</dt><dd>' + darknessOverlap(d0) + '</dd>' +
-    '</dl>';
+    '</dl>' + timeline24(d0, sr, ss, civR, civS, goldR, goldS);
 }
 function proximos(){
   const today = cityDay(Date.now());
@@ -1364,6 +1416,18 @@ $("next").onclick = () => go(1);
 $("today").onclick = () => { now = cityDay(Date.now()); year = now.getFullYear(); month = now.getMonth(); sel = new Date(year, month, now.getDate()); render(); };
 $("shareBtn").onclick = () => shareMoon();
 $("icsBtn").onclick = () => downloadIcs();
+let redMode = false;
+try { redMode = localStorage.getItem("calendario-lunar-rojo") === "1"; } catch(e) {}
+function applyRed(on){
+  redMode = on;
+  const root = document.documentElement;
+  if (on) root.setAttribute("data-theme", "red"); else root.removeAttribute("data-theme");
+  const b = $("redBtn"); if (b) b.setAttribute("aria-pressed", on ? "true" : "false");
+  const meta = document.querySelector('meta[name="theme-color"]'); if (meta) meta.setAttribute("content", on ? "#0c0102" : "#05070d");
+  try { localStorage.setItem("calendario-lunar-rojo", on ? "1" : "0"); } catch(e) {}
+}
+applyRed(redMode);
+$("redBtn").onclick = () => { applyRed(!redMode); render(); };
 render();
 window.addEventListener("resize",drawSky);
 window.addEventListener("scroll",drawSky,{passive:true});
