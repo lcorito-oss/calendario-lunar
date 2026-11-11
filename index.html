@@ -141,8 +141,6 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
   <h2 class="sub" id="eventsTitle">Fases y eclipses del mes</h2>
   <ul class="list" id="events"></ul>
 
-  <h2 class="sub">Próximos eventos</h2>
-  <ul class="list" id="proximos"></ul>
   <p class="note">Horas para San Francisco del Oro, Chihuahua (UTC−6). Fondo estelar simulado para el cielo local cerca del cenit; cambia con la hora y la estación. Eclipses: predicciones de Fred Espenak, NASA GSFC; máximo en hora local aproximada. La región de visibilidad es general y depende de la ubicación exacta. Cálculo astronómico aproximado: la salida y puesta de la luna pueden variar unos minutos según el relieve del horizonte. La distancia a la Luna es aproximada (±5.000 km). El dibujo corresponde al hemisferio norte.</p>
 </main>
 
@@ -1316,20 +1314,6 @@ function sol(){
     '<dt>Luna en la oscuridad</dt><dd>' + darknessOverlap(d0) + '</dd>' +
     '</dl>' + timeline24(d0, sr, ss, civR, civS, goldR, goldS);
 }
-function proximos(){
-  const today = cityDay(Date.now());
-  const tk = dkey(today);
-  const items = Object.keys(NOMBRADAS).filter(k => k >= tk).sort().slice(0, 4);
-  $("proximos").innerHTML = items.map(k => {
-    const ev = NOMBRADAS[k];
-    const parts = k.split("-").map(Number);
-    const dt = new Date(parts[0], parts[1]-1, parts[2]);
-    const days = Math.round((cityDay(Date.UTC(parts[0], parts[1]-1, parts[2], 12)) - today)/86400000);
-    const when = days === 0 ? "hoy" : days === 1 ? "mañana" : "en " + days + " días";
-    const tag = ev.tag ? '<span class="tag">' + ev.tag + '</span>' : "";
-    return '<li>' + moon(ev.nueva ? 0 : 180) + '<div class="col"><strong>' + ev.nombre + tag + '</strong></div><span class="t">' + dt.toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short" }) + ' · ' + when + '</span></li>';
-  }).join("");
-}
 function shareMoon(){
   const e = elong(Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 18));
   const text = nombre(e) + " — " + sel.getDate() + " de " + MESES[sel.getMonth()] + " de " + sel.getFullYear() + ", San Francisco del Oro. Iluminación " + Math.round(illum(e)*100) + "%.";
@@ -1418,7 +1402,6 @@ function render(){
   tonight();
   mira();
   sol();
-  proximos();
   drawSky();
 }
 $("grid").addEventListener("click", e => {
