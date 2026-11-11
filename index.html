@@ -879,17 +879,6 @@ function moonSvg(e, size){
 }
 function moon(e, big){ return moonSvg(e, big ? 190 : 34); }
 
-// Planetas con elementos aproximados JPL y Luna con órbita media, para JD 2444945.0; solo se dibujan sobre el horizonte.
-const SKY_BODIES = [
-  {name:"Mercurio",ra:250.6809,dec:-22.9976,color:"#cbd3e3",kind:"planet"},
-  {name:"Venus",ra:301.2532,dec:-22.9305,color:"#ffe6a6",kind:"planet"},
-  {name:"Marte",ra:176.7908,dec:3.5677,color:"#ff927d",kind:"planet"},
-  {name:"Júpiter",ra:210.2106,dec:-11.1180,color:"#f3d09a",kind:"planet"},
-  {name:"Saturno",ra:199.3960,dec:-5.6732,color:"#dfc88d",kind:"planet"},
-  {name:"Urano",ra:239.3155,dec:-20.2761,color:"#a8e5e1",kind:"planet"},
-  {name:"Neptuno",ra:264.0515,dec:-22.0715,color:"#9eb7ff",kind:"planet"},
-  {name:"Luna",ra:9.9812,dec:-1.0861,color:"#fff1c8",kind:"moon"}
-];
 const SKY_GALAXIES = [
   {name:"M31 Andrómeda",ra:10.6847,dec:41.2692},
   {name:"M33 Triángulo",ra:23.4621,dec:30.6599},
@@ -913,7 +902,7 @@ function drawSky(){
   ctx.clearRect(0,0,width,height);
 
   // Proyección de todo el cielo visible de San Francisco del Oro; el centro del lienzo es el cenit.
-  const d = 2444945.0-2451545; // Día juliano del cielo de referencia.
+  const d = Date.now()/86400000 + 2440587.5 - 2451545; // Cielo en vivo: día juliano del momento actual.
   const lst = (((280.46061837 + 360.98564736629*d + LON) % 360) + 360) % 360 * R;
   const cx = width/2, cy = height/2;
   const horizonRadius = Math.tan(90*R/2);
@@ -960,13 +949,7 @@ function drawSky(){
     ctx.globalAlpha=.035+.055*(1-Math.abs(b)/15);
     ctx.fillStyle="#9eb4ed";ctx.beginPath();ctx.arc(p.x,p.y,1.05+(1-Math.abs(b)/15)*.45,0,Math.PI*2);ctx.fill();
   }
-  // Planetas y satélite natural (Luna), más galaxias destacadas por encima del horizonte.
-  for(const body of SKY_BODIES){
-    const p=projectEquatorial(body.ra,body.dec,body.kind==="moon");if(!p)continue;
-    ctx.globalAlpha=p.below?.42:.96;ctx.fillStyle=body.color;ctx.shadowColor=body.color;ctx.shadowBlur=body.kind==="moon"?9:6;
-    ctx.beginPath();ctx.arc(p.x,p.y,body.kind==="moon"?4.4:3.5,0,Math.PI*2);ctx.fill();
-    ctx.shadowBlur=0;
-  }
+  // Galaxias destacadas por encima del horizonte.
   for(const galaxy of SKY_GALAXIES){
     const p=projectEquatorial(galaxy.ra,galaxy.dec);if(!p)continue;
     ctx.globalAlpha=.82;ctx.strokeStyle="#d4c7ff";ctx.lineWidth=1;
