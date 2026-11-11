@@ -1,4 +1,4 @@
-const CACHE = "calendario-lunar-v5";
+const CACHE = "calendario-lunar-v6";
 const ASSETS = [
   "./",
   "./index.html",

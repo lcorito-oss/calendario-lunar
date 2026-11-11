@@ -37,6 +37,7 @@ h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;margin:0}
 .hero{display:flex;gap:28px;align-items:center;padding:20px 0 28px;flex-wrap:wrap}
 .hero img,.hero svg{display:block;width:min(190px,45vw);height:auto;flex:none;filter:drop-shadow(0 0 8px rgba(255,250,220,.58)) drop-shadow(0 0 22px rgba(233,230,218,.34)) drop-shadow(0 0 44px rgba(233,230,218,.18))}
 .hero h1{font-size:clamp(2rem,6vw,3.2rem);line-height:1.1}
+.hero-named{margin:2px 0 0;color:var(--accent);font-weight:600}
 .hero .date{color:var(--muted);margin:4px 0 14px;text-transform:capitalize}
 dl{display:grid;grid-template-columns:auto auto;gap:4px 28px;margin:0;font-size:1rem}
 dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular-nums}
@@ -46,7 +47,7 @@ dt{color:var(--muted)} dd{margin:0;text-align:right;font-variant-numeric:tabular
 button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer}
 button:hover{border-color:var(--muted)}
 button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.scroll{overflow-x:auto}
+.scroll{overflow-x:auto;margin-bottom:20px}
 .grid{display:grid;grid-template-columns:repeat(7,minmax(46px,1fr));gap:4px;min-width:340px}
 .dow{color:var(--muted);font-size:.82rem;text-align:center;padding:4px 0}
 .cell{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 4px;min-height:92px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;text-align:center;font:inherit;color:inherit}
@@ -61,7 +62,8 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .cell.today .n{color:var(--text);font-weight:600}
 .cell.today{box-shadow:inset 0 0 0 1px var(--text)}
 .cell.sel{outline:2px solid var(--text);outline-offset:-2px}
-.list{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.list{margin:28px 0 0;padding:0;list-style:none;display:grid;gap:12px}
+#events{margin-top:0}
 .list li{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;min-width:0}
 .list img,.list svg{width:24px;height:24px;flex:none}
 .list .t{margin-left:auto;flex:none;color:var(--muted);font-size:clamp(.68rem,1.5vw,.9rem);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
@@ -110,6 +112,7 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
     <div id="heroMoon"></div>
     <div>
       <h1 id="heroName"></h1>
+      <p class="hero-named" id="heroNamed" hidden></p>
       <p class="date" id="heroDate"></p>
       <dl id="heroData"></dl>
       <div class="cycle" aria-hidden="true"><div class="cycle-fill" id="cycleFill"></div></div>
@@ -135,6 +138,7 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 
   <section class="card" id="sol" aria-live="polite"></section>
 
+  <h2 class="sub" id="eventsTitle">Fases y eclipses del mes</h2>
   <ul class="list" id="events"></ul>
 
   <h2 class="sub">Próximos eventos</h2>
@@ -1185,6 +1189,10 @@ function hero(){
   const e = elong(noon);
   $("heroMoon").innerHTML = moon(e, true);
   $("heroName").textContent = nombre(e);
+  const namedDay = NOMBRADAS[dkey(sel)];
+  const heroNamed = $("heroNamed");
+  heroNamed.textContent = namedDay ? namedDay.nombre + (namedDay.tag ? " · " + namedDay.tag : "") : "";
+  heroNamed.hidden = !namedDay;
   $("heroDate").textContent = sel.toLocaleDateString("es", { weekday:"long", day:"numeric", month:"long", year:"numeric" }) + ", San Francisco del Oro";
   const rs = riseSet(sel.getFullYear(), sel.getMonth(), sel.getDate());
   $("heroData").innerHTML = `<dt>Sale la luna</dt><dd>${hm(rs.rise)}</dd><dt>Se oculta la luna</dt><dd>${hm(rs.set)}</dd><dt>Iluminación</dt><dd>${Math.round(illum(e)*100)}%</dd><dt>Edad lunar</dt><dd>${(e/360*SYN).toFixed(1)} días</dd><dt>Fase</dt><dd>${e < 180 ? "Creciente" : "Menguante"}</dd><dt>Distancia (aprox.)</dt><dd>${Math.round(moonDist(noon)).toLocaleString("es-MX")} km</dd>`;
@@ -1208,11 +1216,15 @@ function tonight(){
   const isFull = nombre(e) === "Luna llena";
   const next = isFull ? null : eventsBetween(t, t + 32*86400000).find(ev => ev.i === 2);
   let fullText;
-  if (isFull) fullText = "Hoy hay luna llena";
+  if (isFull) {
+    const namedToday = NOMBRADAS[dkey(today)];
+    fullText = "Hoy hay luna llena" + (namedToday ? " · " + namedToday.nombre : "");
+  }
   else if (!next) fullText = "Próxima luna llena: —";
   else {
     const days = Math.max(0, Math.round((cityDay(next.t) - today)/86400000));
-    fullText = "Próxima luna llena en " + days + (days === 1 ? " día" : " días") + " · " + new Date(next.t).toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short", timeZone: TZ });
+    const namedNext = NOMBRADAS[dkey(cityDay(next.t))];
+    fullText = "Próxima luna llena" + (namedNext ? " · " + namedNext.nombre : "") + " en " + days + (days === 1 ? " día" : " días") + " · " + new Date(next.t).toLocaleDateString("es", { weekday:"short", day:"numeric", month:"short", timeZone: TZ });
   }
   const visible = alt > 0;
   let cuentaTxt = "";
@@ -1393,9 +1405,12 @@ function render(){
       const visibility = ev.america ? "en parte de América" : "fuera de América";
       return '<li class="eclipse-entry">' + moon(180) + '<div class="col"><strong>Eclipse lunar ' + ev.tipo.toLowerCase() + '</strong></div><span class="t">' + dateText + ' · Máx. ' + hora(dt) + ' · ' + visibility + '</span></li>';
     }
-    const named = ev.i8 === 4 ? NOMBRADAS[dkey(cityDay(ev.t))] : null;
-    const title = NOMBRES[ev.i8] + (named ? " · " + named.nombre : "");
-    const tag = named && named.tag ? '<span class="tag">' + named.tag + '</span>' : "";
+    // La luna llena lleva su nombre tradicional; la Luna negra (segunda luna
+    // nueva del mes) también se nombra en su fila de luna nueva.
+    const named = NOMBRADAS[dkey(cityDay(ev.t))];
+    const isNamedPhase = named && ((ev.i8 === 4 && !named.nueva) || (ev.i8 === 0 && named.nueva));
+    const title = NOMBRES[ev.i8] + (isNamedPhase ? " · " + named.nombre : "");
+    const tag = isNamedPhase && named.tag ? '<span class="tag">' + named.tag + '</span>' : "";
     const tip = TIPS8[ev.i8] ? '<span class="tip">' + TIPS8[ev.i8] + '</span>' : "";
     return '<li' + (ev.i8 % 2 ? ' class="inter"' : '') + '>' + moon(ev.i8*45) + '<div class="col"><strong>' + title + tag + '</strong>' + tip + '</div><span class="t">' + dateText + ' · ' + hora(dt) + '</span></li>';
   }).join("");
