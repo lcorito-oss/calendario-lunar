@@ -15,7 +15,7 @@
 :root{
   --bg:#05070d; --panel:#0d121c; --line:#1f2836; --text:#e8ebf2; --muted:#8c97ab;
   --lit:#e9e6da; --dark:#1a2030; --accent:#8fd694; --accent-bg:#122219; --eclipse:#d5b9ff;
-  --tl-night:#0b1020; --tl-blue:#2c4a7a; --tl-gold:#d9a441; --tl-day:#f4d98a;
+  --tl-night:#0b1020; --tl-blue:#2c4a7a; --tl-naut:#1e3257; --tl-astro:#111a2c; --tl-gold:#d9a441; --tl-day:#f4d98a;
   box-sizing:border-box;
   color-scheme:dark;
 }
@@ -27,7 +27,7 @@
 }
 :root[data-theme="light"]{--bg:#f3f1ea;--panel:#fbfaf6;--line:#d9d5c8;--text:#171a22;--muted:#667085;--lit:#f4d98a;--dark:#3a4256;--accent:#1f7a3d;--accent-bg:#e4f1e2;--eclipse:#7047a1;color-scheme:light}
 :root[data-theme="dark"]{--bg:#05070d;--panel:#0d121c;--line:#1f2836;--text:#e8ebf2;--muted:#8c97ab;--lit:#e9e6da;--dark:#1a2030;--accent:#8fd694;--accent-bg:#122219;color-scheme:dark}
-:root[data-theme="red"]{--bg:#0c0102;--panel:#160404;--line:#3d1210;--text:#f0c6bd;--muted:#b07a6f;--lit:#f0c9b8;--dark:#260a08;--accent:#ff7a6b;--accent-bg:#2a0d09;--eclipse:#ff9d94;--tl-night:#1a0505;--tl-blue:#5a1f1c;--tl-gold:#a03d2a;--tl-day:#7a3a28;color-scheme:dark}
+:root[data-theme="red"]{--bg:#0c0102;--panel:#160404;--line:#3d1210;--text:#f0c6bd;--muted:#b07a6f;--lit:#f0c9b8;--dark:#260a08;--accent:#ff7a6b;--accent-bg:#2a0d09;--eclipse:#ff9d94;--tl-night:#1a0505;--tl-blue:#5a1f1c;--tl-naut:#4a130e;--tl-astro:#2a0805;--tl-gold:#a03d2a;--tl-day:#7a3a28;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
 body{margin:0;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5}
@@ -96,6 +96,7 @@ button:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline
 .tl-bar{display:flex;height:14px;border:1px solid var(--line);border-radius:7px;overflow:hidden}
 .tl-bar>div{height:100%}
 .tl-now{position:absolute;top:-5px;bottom:-5px;width:2px;background:#ff5a4e;z-index:1}
+.tl-mark{position:absolute;top:50%;transform:translate(-50%,-50%);font-size:13px;line-height:1;text-shadow:0 0 3px #000;z-index:1}
 .tl-now::after{content:"ahora";position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:.62rem;color:var(--muted);white-space:nowrap}
 .tl-hours{display:flex;justify-content:space-between;font-size:.7rem;color:var(--muted);margin-top:2px}
 .tl-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.78rem;color:var(--muted);margin-top:8px}
@@ -1138,16 +1139,28 @@ function sunGolden(d0, which){
   const solarNoonMin = 720 - 4*LON - eqTime;
   return d0 + (which === "rise" ? solarNoonMin - H*4 : solarNoonMin + H*4)*60000;
 }
-function darknessOverlap(d0){
-  const start = sunEvent(d0, 108, "set");
-  const end = sunEvent(d0 + 86400000, 108, "rise");
-  if (!start || !end) return "No hay oscuridad total esta noche";
-  let first = null, last = null;
-  for (let t = start; t <= end; t += 600000){
-    if (moonAlt(t) > 0){ if (first === null) first = t; last = t; }
-  }
-  if (first === null) return "No coincide con la oscuridad esta noche";
-  return "Sí, se ve de " + hm(first) + " a " + hm(last);
+function sunAlt(t){
+  const {dec, eqTime} = sunPos(t);
+  const d0 = Date.UTC(new Date(t).getUTCFullYear(), new Date(t).getUTCMonth(), new Date(t).getUTCDate());
+  const solarH = (t - d0)/3600000 + LON/15 + eqTime/60;
+  const H = (solarH - 12)*15*R;
+  return Math.asin(Math.sin(LAT*R)*Math.sin(dec*R) + Math.cos(LAT*R)*Math.cos(dec*R)*Math.cos(H))/R;
+}
+function lunaOscuridad(d0, s){
+  const astroDawnN = sunEvent(d0 + 86400000, 108, "rise");
+  const scan = (a, b) => {
+    if (!a || !b) return null;
+    let first = null, last = null;
+    for (let t = a; t <= b; t += 300000){
+      if (moonAlt(t) > 0){ if (first === null) first = t; last = t; }
+    }
+    return first !== null ? [first, last] : null;
+  };
+  const osc = scan(s.astroDusk, astroDawnN);
+  if (osc) return "Sí, la Luna se ve en plena oscuridad entre las " + hm(osc[0]) + " y las " + hm(osc[1]) + ".";
+  const crep = scan(s.civilDusk, s.astroDusk) || scan(s.astroDawn, s.civilDawn);
+  if (crep) return "Solo con algo de luz (crepúsculo), entre las " + hm(crep[0]) + " y las " + hm(crep[1]) + ".";
+  return "No, la Luna no coincide con la noche de hoy.";
 }
 function eventsBetween(t0, t1){
   const out = [], H = 3600000;
@@ -1280,39 +1293,59 @@ function mira(){
     '<dt>Tránsito</dt><dd>' + hm(tr) + ' · altura máx. ' + Math.round(trPos.alt) + '°</dd>' +
     '</dl></div>';
 }
-function timeline24(d0, sr, ss, civR, civS, goldR, goldS){
-  if (!sr || !ss || !civR || !civS || !goldR || !goldS) return "";
-  const day = 86400000;
-  const start = d0 + 6*3600000; // medianoche local (UTC−6 todo el año); d0 es medianoche UTC
-  const segs = [
-    [start, civR, "night"], [civR, sr, "blue"], [sr, goldR, "gold"], [goldR, goldS, "day"],
-    [goldS, ss, "gold"], [ss, civS, "blue"], [civS, start + day, "night"]
-  ];
-  const bars = segs.map(s => {
-    const a = Math.max(s[0], start), b = Math.min(s[1], start + day);
-    return '<div style="width:' + Math.max(0, (b-a)/day*100).toFixed(2) + '%;background:var(--tl-' + s[2] + ')"></div>';
-  }).join("");
-  const nowPct = Math.max(0, Math.min(100, (Date.now() - start)/day*100)).toFixed(1);
-  return '<div class="tl"><div class="tl-bar">' + bars + '</div><span class="tl-now" style="left:' + nowPct + '%"></span></div>' +
+function timeline24(y, m, d){
+  const t0 = Date.UTC(y, m, d, 6); // medianoche local (UTC−6 todo el año)
+  const cls = a => a >= -0.833 ? "day" : a >= -6 ? "blue" : a >= -12 ? "naut" : a >= -18 ? "astro" : "night";
+  let segs = [], cur = null, start = 0;
+  for (let i = 0; i <= 96; i++){
+    const c = cls(sunAlt(t0 + i*900000));
+    if (cur === null){ cur = c; start = 0; }
+    else if (c !== cur){ segs.push([start, i, cur]); cur = c; start = i; }
+  }
+  segs.push([start, 96, cur]);
+  const col = {day: "var(--tl-day)", blue: "var(--tl-blue)", naut: "var(--tl-naut)", astro: "var(--tl-astro)", night: "var(--tl-night)"};
+  const bars = segs.map(s => '<div style="width:' + ((s[1]-s[0])/96*100).toFixed(2) + '%;background:' + col[s[2]] + '"></div>').join("");
+  const rs = riseSet(y, m, d);
+  const mark = (t, label, sym) => t ? '<span class="tl-mark" style="left:' + ((t-t0)/86400000*100).toFixed(2) + '%" title="' + label + ' ' + hm(t) + '">' + sym + '</span>' : '';
+  const nowPct = Math.max(0, Math.min(100, (Date.now() - t0)/86400000*100)).toFixed(1);
+  return '<div class="tl"><div class="tl-bar">' + bars + '</div>' + mark(rs.rise, "Sale la luna", "☾") + mark(rs.set, "Se pone la luna", "☽") + '<span class="tl-now" style="left:' + nowPct + '%"></span></div>' +
     '<div class="tl-hours"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span></div>' +
-    '<div class="tl-legend"><span><i style="background:var(--tl-night)"></i>Noche</span><span><i style="background:var(--tl-blue)"></i>Hora azul</span><span><i style="background:var(--tl-gold)"></i>Hora dorada</span><span><i style="background:var(--tl-day)"></i>Día</span></div>';
+    '<div class="tl-legend"><span><i style="background:var(--tl-day)"></i>Día</span><span><i style="background:var(--tl-blue)"></i>Hora azul</span><span><i style="background:var(--tl-naut)"></i>Crep. náutico</span><span><i style="background:var(--tl-astro)"></i>Crep. astronómico</span><span><i style="background:var(--tl-night)"></i>Noche</span></div>' +
+    '<p class="muted" style="margin:4px 0 0;font-size:.8rem">☾ sale la Luna · ☽ se pone la Luna</p>';
 }
 function sol(){
   const today = cityDay(Date.now());
-  const d0 = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const y = today.getFullYear(), m = today.getMonth(), d = today.getDate();
+  const d0 = Date.UTC(y, m, d);
+  const {dec, eqTime} = sunPos(d0 + 43200000);
+  const solarNoonMin = 720 - 4*LON - eqTime;
+  const transit = d0 + solarNoonMin*60000;
+  const maxAlt = 90 - Math.abs(LAT - dec);
   const sr = sunEvent(d0, 90.833, "rise"), ss = sunEvent(d0, 90.833, "set");
   const civR = sunEvent(d0, 96, "rise"), civS = sunEvent(d0, 96, "set");
-  const astS = sunEvent(d0, 108, "set"), astR2 = sunEvent(d0 + 86400000, 108, "rise");
+  const nauR = sunEvent(d0, 102, "rise"), nauS = sunEvent(d0, 102, "set");
+  const astR = sunEvent(d0, 108, "rise"), astS = sunEvent(d0, 108, "set");
+  const astR2 = sunEvent(d0 + 86400000, 108, "rise");
   const goldR = sunGolden(d0, "rise"), goldS = sunGolden(d0, "set");
+  const intervalo = (a, b) => (a && b) ? hm(a) + " – " + hm(b) : "—";
+  const goldenAm = sr && goldR ? hm(sr) + " – " + hm(goldR) : "—";
+  const goldenPm = goldS && ss ? hm(goldS) + " – " + hm(ss) : "—";
+  const blueAm = civR && sr ? hm(civR) + " – " + hm(sr) : "—";
+  const bluePm = ss && civS ? hm(ss) + " – " + hm(civS) : "—";
+  const row = (k, v) => '<dt>' + k + '</dt><dd>' + v + '</dd>';
   $("sol").innerHTML =
     '<h2>Sol y oscuridad</h2><dl>' +
-    '<dt>Amanecer</dt><dd>' + hm(sr) + '</dd>' +
-    '<dt>Atardecer</dt><dd>' + hm(ss) + '</dd>' +
-    '<dt>Hora dorada</dt><dd>' + hm(sr) + '–' + hm(goldR) + ' y ' + hm(goldS) + '–' + hm(ss) + '</dd>' +
-    '<dt>Hora azul</dt><dd>' + hm(civR) + '–' + hm(sr) + ' y ' + hm(ss) + '–' + hm(civS) + '</dd>' +
-    '<dt>Oscuridad total</dt><dd>' + hm(astS) + ' – ' + hm(astR2) + '</dd>' +
-    '<dt>Luna en la oscuridad</dt><dd>' + darknessOverlap(d0) + '</dd>' +
-    '</dl>' + timeline24(d0, sr, ss, civR, civS, goldR, goldS);
+    row("Amanece", hm(sr)) +
+    row("Se pone el Sol", hm(ss)) +
+    row("Mediodía solar", hm(transit) + " · altura máx. " + Math.round(maxAlt) + "°") +
+    row("Hora dorada", goldenAm + " · " + goldenPm) +
+    row("Hora azul", blueAm + " · " + bluePm) +
+    row("Crepúsculo civil", intervalo(civR, civS)) +
+    row("Crepúsculo náutico", intervalo(nauR, nauS)) +
+    row("Crepúsculo astronómico", intervalo(astR, astS)) +
+    row("Oscuridad total", intervalo(astS, astR2)) +
+    row("Luna en la oscuridad", lunaOscuridad(d0, {astroDusk: astS, civilDusk: civS, astroDawn: astR, civilDawn: civR})) +
+    '</dl>' + timeline24(y, m, d);
 }
 function shareMoon(){
   const e = elong(Date.UTC(sel.getFullYear(), sel.getMonth(), sel.getDate(), 18));
